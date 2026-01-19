@@ -1,0 +1,659 @@
+// IT Inventory Management System - National Group India
+// Prisma Schema for PostgreSQL
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// ORGANIZATION STRUCTURE
+// ============================================
+
+model Company {
+  id          String   @id @default(cuid())
+  code        String   @unique // ISKY, NCPL, NIPL, NRPL, RAINLAND
+  name        String
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  locations   Location[]
+  departments Department[]
+  employees   Employee[]
+  systems     System[]
+  mobiles     Mobile[]
+  software    Software[]
+  requests    Request[]
+  auditLogs   AuditLog[]
+
+  @@map("companies")
+}
+
+model Location {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  address   String?
+  city      String
+  state     String   @default("Karnataka")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  companyId String
+  company   Company    @relation(fields: [companyId], references: [id])
+  employees Employee[]
+  systems   System[]
+  mobiles   Mobile[]
+  software  Software[]
+  requests  Request[]
+
+  @@map("locations")
+}
+
+model Department {
+  id        String   @id @default(cuid())
+  name      String
+  code      String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  companyId String
+  company   Company    @relation(fields: [companyId], references: [id])
+  employees Employee[]
+  systems   System[]
+  requests  Request[]
+
+  @@unique([companyId, name])
+  @@map("departments")
+}
+
+// ============================================
+// EMPLOYEE MANAGEMENT
+// ============================================
+
+model Employee {
+  id             String    @id @default(cuid())
+  employeeCode   String    @unique
+  firstName      String
+  lastName       String
+  email          String    @unique
+  phone          String?
+  designation    String?
+  joiningDate    DateTime?
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  // Relations
+  companyId    String
+  company      Company    @relation(fields: [companyId], references: [id])
+  locationId   String
+  location     Location   @relation(fields: [locationId], references: [id])
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+
+  // Asset relations
+  systems           System[]   @relation("CurrentUser")
+  previousSystems   System[]   @relation("PreviousUser")
+  mobiles           Mobile[]
+  softwareLicenses  SoftwareLicense[]
+  requestsCreated   Request[]  @relation("Requester")
+  requestsApproved  Request[]  @relation("Approver")
+
+  @@map("employees")
+}
+
+// ============================================
+// SYSTEMS (Hardware Inventory)
+// ============================================
+
+enum SystemStatus {
+  ACTIVE
+  INACTIVE
+  MAINTENANCE
+  RETIRED
+  DISPOSED
+  IN_STOCK
+}
+
+enum ProductType {
+  DESKTOP
+  LAPTOP
+  SERVER
+  PRINTER
+  SCANNER
+  MONITOR
+  PROJECTOR
+  NETWORKING
+  UPS
+  OTHER
+}
+
+model System {
+  id                    String       @id @default(cuid())
+  assetTag              String       @unique
+  serialNumber          String?
+  productType           ProductType
+  manufacturer          String?
+  model                 String?
+  
+  // Configuration
+  processor             String?
+  ram                   String?
+  storage               String?
+  operatingSystem       String?
+  osVersion             String?
+  macAddress            String?
+  ipAddress             String?
+  
+  // Purchase & Warranty
+  purchaseDate          DateTime?
+  warrantyStartDate     DateTime?
+  warrantyEndDate       DateTime?
+  purchasePrice         Decimal?     @db.Decimal(12, 2)
+  invoiceNumber         String?
+  invoiceDate           DateTime?
+  poNumber              String?
+  
+  // Vendor
+  vendorId              String?
+  vendor                Vendor?      @relation(fields: [vendorId], references: [id])
+  
+  // Maintenance
+  lastMaintenanceDate   DateTime?
+  nextMaintenanceDate   DateTime?
+  maintenanceFrequency  Int?         // days
+  amcStartDate          DateTime?
+  amcEndDate            DateTime?
+  
+  // Status & Assignment
+  status                SystemStatus @default(IN_STOCK)
+  condition             String?
+  remarks               String?
+  
+  // Relations
+  companyId             String
+  company               Company      @relation(fields: [companyId], references: [id])
+  locationId            String
+  location              Location     @relation(fields: [locationId], references: [id])
+  departmentId          String?
+  department            Department?  @relation(fields: [departmentId], references: [id])
+  
+  currentUserId         String?
+  currentUser           Employee?    @relation("CurrentUser", fields: [currentUserId], references: [id])
+  previousUserId        String?
+  previousUser          Employee?    @relation("PreviousUser", fields: [previousUserId], references: [id])
+  
+  // Audit
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+  createdBy             String?
+  updatedBy             String?
+  
+  // File attachments
+  attachments           SystemAttachment[]
+  installedSoftware     SystemSoftware[]
+  maintenanceRecords    MaintenanceRecord[]
+
+  @@index([companyId, status])
+  @@index([locationId])
+  @@index([productType])
+  @@map("systems")
+}
+
+model SystemAttachment {
+  id          String   @id @default(cuid())
+  fileName    String
+  fileUrl     String
+  fileType    String?
+  fileSize    Int?
+  description String?
+  uploadedAt  DateTime @default(now())
+  
+  systemId    String
+  system      System   @relation(fields: [systemId], references: [id], onDelete: Cascade)
+
+  @@map("system_attachments")
+}
+
+model MaintenanceRecord {
+  id               String   @id @default(cuid())
+  maintenanceDate  DateTime
+  maintenanceType  String   // Preventive, Corrective, Upgrade
+  description      String?
+  cost             Decimal? @db.Decimal(12, 2)
+  performedBy      String?
+  nextDueDate      DateTime?
+  remarks          String?
+  createdAt        DateTime @default(now())
+  
+  systemId         String
+  system           System   @relation(fields: [systemId], references: [id], onDelete: Cascade)
+
+  @@map("maintenance_records")
+}
+
+// ============================================
+// MOBILE DEVICES & SIM
+// ============================================
+
+enum MobileStatus {
+  ACTIVE
+  INACTIVE
+  LOST
+  DAMAGED
+  RETURNED
+}
+
+model Mobile {
+  id              String       @id @default(cuid())
+  
+  // Device Details
+  deviceType      String?      // Phone, Tablet, Dongle
+  manufacturer    String?
+  model           String?
+  imei1           String?
+  imei2           String?
+  
+  // SIM Details
+  simNumber       String?
+  mobileNumber    String?
+  operator        String?      // Airtel, Jio, VI, BSNL
+  planType        String?      // Prepaid, Postpaid, Corporate
+  planDetails     String?
+  monthlyRental   Decimal?     @db.Decimal(10, 2)
+  dataLimit       String?
+  
+  // Purchase
+  purchaseDate    DateTime?
+  purchasePrice   Decimal?     @db.Decimal(12, 2)
+  invoiceNumber   String?
+  
+  // Status
+  status          MobileStatus @default(ACTIVE)
+  allocationDate  DateTime?
+  returnDate      DateTime?
+  remarks         String?
+  
+  // Relations
+  companyId       String
+  company         Company      @relation(fields: [companyId], references: [id])
+  locationId      String
+  location        Location     @relation(fields: [locationId], references: [id])
+  employeeId      String?
+  employee        Employee?    @relation(fields: [employeeId], references: [id])
+  
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([companyId, status])
+  @@map("mobiles")
+}
+
+// ============================================
+// SOFTWARE & LICENSES
+// ============================================
+
+enum LicenseType {
+  PERPETUAL
+  SUBSCRIPTION
+  OEM
+  VOLUME
+  FREEWARE
+  OPEN_SOURCE
+}
+
+enum SoftwareCategory {
+  OPERATING_SYSTEM
+  OFFICE_SUITE
+  ANTIVIRUS
+  DATABASE
+  DEVELOPMENT
+  DESIGN
+  ACCOUNTING
+  ERP
+  CRM
+  COMMUNICATION
+  UTILITY
+  OTHER
+}
+
+model Software {
+  id                  String           @id @default(cuid())
+  name                String
+  version             String?
+  publisher           String?
+  category            SoftwareCategory
+  description         String?
+  
+  // License Details
+  licenseType         LicenseType
+  licenseKey          String?
+  totalLicenses       Int              @default(1)
+  usedLicenses        Int              @default(0)
+  
+  // Cost
+  costPerLicense      Decimal?         @db.Decimal(12, 2)
+  totalCost           Decimal?         @db.Decimal(12, 2)
+  currency            String           @default("INR")
+  
+  // Purchase & Renewal
+  purchaseDate        DateTime?
+  expiryDate          DateTime?
+  renewalDate         DateTime?
+  invoiceNumber       String?
+  poNumber            String?
+  
+  // Vendor
+  vendorId            String?
+  vendor              Vendor?          @relation(fields: [vendorId], references: [id])
+  
+  // Status
+  isActive            Boolean          @default(true)
+  remarks             String?
+  
+  // Relations
+  companyId           String
+  company             Company          @relation(fields: [companyId], references: [id])
+  locationId          String?
+  location            Location?        @relation(fields: [locationId], references: [id])
+  
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+  
+  // Relations
+  licenses            SoftwareLicense[]
+  systemSoftware      SystemSoftware[]
+  attachments         SoftwareAttachment[]
+
+  @@index([companyId, category])
+  @@index([expiryDate])
+  @@map("software")
+}
+
+model SoftwareLicense {
+  id              String    @id @default(cuid())
+  licenseKey      String?
+  activationDate  DateTime?
+  expiryDate      DateTime?
+  isActive        Boolean   @default(true)
+  remarks         String?
+  
+  softwareId      String
+  software        Software  @relation(fields: [softwareId], references: [id], onDelete: Cascade)
+  employeeId      String?
+  employee        Employee? @relation(fields: [employeeId], references: [id])
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@map("software_licenses")
+}
+
+model SystemSoftware {
+  id              String   @id @default(cuid())
+  installedDate   DateTime @default(now())
+  version         String?
+  remarks         String?
+  
+  systemId        String
+  system          System   @relation(fields: [systemId], references: [id], onDelete: Cascade)
+  softwareId      String
+  software        Software @relation(fields: [softwareId], references: [id], onDelete: Cascade)
+
+  @@unique([systemId, softwareId])
+  @@map("system_software")
+}
+
+model SoftwareAttachment {
+  id          String   @id @default(cuid())
+  fileName    String
+  fileUrl     String
+  fileType    String?
+  fileSize    Int?
+  description String?
+  uploadedAt  DateTime @default(now())
+  
+  softwareId  String
+  software    Software @relation(fields: [softwareId], references: [id], onDelete: Cascade)
+
+  @@map("software_attachments")
+}
+
+// ============================================
+// IT REQUESTS
+// ============================================
+
+enum RequestStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  REJECTED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum RequestType {
+  NEW_EMPLOYEE
+  HARDWARE
+  SOFTWARE
+  ACCESS
+  MOBILE
+  EMAIL_ACCOUNT
+  MAINTENANCE
+  OTHER
+}
+
+enum EmployeeType {
+  NEW
+  EXISTING
+}
+
+model Request {
+  id                  String        @id @default(cuid())
+  requestNumber       String        @unique
+  requestType         RequestType
+  priority            String        @default("NORMAL") // LOW, NORMAL, HIGH, URGENT
+  
+  // Requester Details
+  employeeType        EmployeeType  @default(EXISTING)
+  requesterName       String?
+  requesterEmail      String?
+  requesterPhone      String?
+  joiningDate         DateTime?
+  
+  // Request Details
+  subject             String
+  description         String?
+  justification       String?
+  
+  // Asset Requirements
+  assetType           String?
+  specifications      String?
+  quantity            Int           @default(1)
+  
+  // Access Requirements
+  accessRequirements  String?
+  softwareRequirements String?
+  
+  // Status & Workflow
+  status              RequestStatus @default(PENDING)
+  approvalRemarks     String?
+  approvedAt          DateTime?
+  completedAt         DateTime?
+  
+  // Relations
+  companyId           String
+  company             Company       @relation(fields: [companyId], references: [id])
+  locationId          String
+  location            Location      @relation(fields: [locationId], references: [id])
+  departmentId        String?
+  department          Department?   @relation(fields: [departmentId], references: [id])
+  
+  requesterId         String?
+  requester           Employee?     @relation("Requester", fields: [requesterId], references: [id])
+  approverId          String?
+  approver            Employee?     @relation("Approver", fields: [approverId], references: [id])
+  
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  
+  // Comments & Attachments
+  comments            RequestComment[]
+  attachments         RequestAttachment[]
+
+  @@index([companyId, status])
+  @@index([requestType])
+  @@index([createdAt])
+  @@map("requests")
+}
+
+model RequestComment {
+  id          String   @id @default(cuid())
+  comment     String
+  commentBy   String
+  createdAt   DateTime @default(now())
+  
+  requestId   String
+  request     Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@map("request_comments")
+}
+
+model RequestAttachment {
+  id          String   @id @default(cuid())
+  fileName    String
+  fileUrl     String
+  fileType    String?
+  fileSize    Int?
+  description String?
+  uploadedAt  DateTime @default(now())
+  
+  requestId   String
+  request     Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@map("request_attachments")
+}
+
+// ============================================
+// VENDORS
+// ============================================
+
+model Vendor {
+  id            String   @id @default(cuid())
+  name          String
+  code          String?  @unique
+  contactPerson String?
+  email         String?
+  phone         String?
+  address       String?
+  city          String?
+  state         String?
+  gstin         String?
+  panNumber     String?
+  isActive      Boolean  @default(true)
+  remarks       String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Relations
+  systems       System[]
+  software      Software[]
+
+  @@map("vendors")
+}
+
+// ============================================
+// AUDIT & NOTIFICATIONS
+// ============================================
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  action      String   // CREATE, UPDATE, DELETE
+  entityType  String   // System, Mobile, Software, Request
+  entityId    String
+  oldValues   Json?
+  newValues   Json?
+  performedBy String
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+  
+  companyId   String?
+  company     Company? @relation(fields: [companyId], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model Notification {
+  id          String   @id @default(cuid())
+  type        String   // WARRANTY_EXPIRY, LICENSE_RENEWAL, MAINTENANCE_DUE, REQUEST_UPDATE
+  title       String
+  message     String
+  entityType  String?
+  entityId    String?
+  recipientId String?
+  isRead      Boolean  @default(false)
+  sentAt      DateTime?
+  createdAt   DateTime @default(now())
+
+  @@index([recipientId, isRead])
+  @@map("notifications")
+}
+
+model EmailLog {
+  id          String   @id @default(cuid())
+  to          String
+  cc          String?
+  subject     String
+  body        String
+  status      String   // PENDING, SENT, FAILED
+  messageId   String?
+  errorMessage String?
+  sentAt      DateTime?
+  createdAt   DateTime @default(now())
+
+  @@map("email_logs")
+}
+
+// ============================================
+// USER MANAGEMENT (For future RBAC)
+// ============================================
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  IT_MANAGER
+  IT_SUPPORT
+  DEPARTMENT_HEAD
+  EMPLOYEE
+  VIEWER
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  passwordHash  String?
+  name          String
+  role          UserRole  @default(EMPLOYEE)
+  isActive      Boolean   @default(true)
+  lastLoginAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@map("users")
+}
