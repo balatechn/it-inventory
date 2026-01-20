@@ -137,7 +137,7 @@ export function SystemForm({ initialData, isEditing = false }: SystemFormProps) 
           </CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div className="space-y-2">
-              <Label htmlFor="assetTag" required>Asset Tag</Label>
+              <Label htmlFor="assetTag">Asset Tag</Label>
               <Input
                 id="assetTag"
                 {...register('assetTag')}
@@ -158,7 +158,7 @@ export function SystemForm({ initialData, isEditing = false }: SystemFormProps) 
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="productType" required>Product Type</Label>
+              <Label htmlFor="productType">Product Type</Label>
               <Select
                 id="productType"
                 {...register('productType')}
@@ -189,7 +189,7 @@ export function SystemForm({ initialData, isEditing = false }: SystemFormProps) 
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="status" required>Status</Label>
+              <Label htmlFor="status">Status</Label>
               <Select
                 id="status"
                 {...register('status')}
@@ -206,7 +206,7 @@ export function SystemForm({ initialData, isEditing = false }: SystemFormProps) 
           </CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div className="space-y-2">
-              <Label htmlFor="companyId" required>Company</Label>
+              <Label htmlFor="companyId">Company</Label>
               <Select
                 id="companyId"
                 {...register('companyId')}
@@ -219,7 +219,7 @@ export function SystemForm({ initialData, isEditing = false }: SystemFormProps) 
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="locationId" required>Location</Label>
+              <Label htmlFor="locationId">Location</Label>
               <Select
                 id="locationId"
                 {...register('locationId')}

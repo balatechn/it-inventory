@@ -122,7 +122,7 @@ export function RequestForm({ initialData, isEditing = false }: RequestFormProps
           </CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div className="space-y-2">
-              <Label htmlFor="requestType" required>Request Type</Label>
+              <Label htmlFor="requestType">Request Type</Label>
               <Select
                 id="requestType"
                 {...register('requestType')}
@@ -135,7 +135,7 @@ export function RequestForm({ initialData, isEditing = false }: RequestFormProps
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="priority" required>Priority</Label>
+              <Label htmlFor="priority">Priority</Label>
               <Select
                 id="priority"
                 {...register('priority')}
@@ -144,7 +144,7 @@ export function RequestForm({ initialData, isEditing = false }: RequestFormProps
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="employeeType" required>Employee Type</Label>
+              <Label htmlFor="employeeType">Employee Type</Label>
               <Select
                 id="employeeType"
                 {...register('employeeType')}
@@ -208,7 +208,7 @@ export function RequestForm({ initialData, isEditing = false }: RequestFormProps
           </CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div className="space-y-2">
-              <Label htmlFor="companyId" required>Company</Label>
+              <Label htmlFor="companyId">Company</Label>
               <Select
                 id="companyId"
                 {...register('companyId')}
@@ -221,7 +221,7 @@ export function RequestForm({ initialData, isEditing = false }: RequestFormProps
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="locationId" required>Location</Label>
+              <Label htmlFor="locationId">Location</Label>
               <Select
                 id="locationId"
                 {...register('locationId')}
@@ -252,7 +252,7 @@ export function RequestForm({ initialData, isEditing = false }: RequestFormProps
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="subject" required>Subject</Label>
+              <Label htmlFor="subject">Subject</Label>
               <Input
                 id="subject"
                 {...register('subject')}

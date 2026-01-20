@@ -28,10 +28,10 @@ export const searchSchema = z.object({
 // ============================================
 
 export const companySchema = z.object({
-  code: z.string().min(2).max(20).toUpperCase(),
-  name: z.string().min(2).max(100),
+  code: z.string().max(20).toUpperCase().optional(),
+  name: z.string().max(100).optional(),
   description: z.string().max(500).optional(),
-  isActive: z.boolean().default(true),
+  isActive: z.boolean().default(true).optional(),
 });
 
 export const companyUpdateSchema = companySchema.partial();
@@ -41,13 +41,13 @@ export const companyUpdateSchema = companySchema.partial();
 // ============================================
 
 export const locationSchema = z.object({
-  code: z.string().min(2).max(20).toUpperCase(),
-  name: z.string().min(2).max(100),
+  code: z.string().max(20).toUpperCase().optional(),
+  name: z.string().max(100).optional(),
   address: z.string().max(500).optional(),
-  city: z.string().min(2).max(50),
-  state: z.string().default('Karnataka'),
-  companyId: idString(),
-  isActive: z.boolean().default(true),
+  city: z.string().max(50).optional(),
+  state: z.string().default('Karnataka').optional(),
+  companyId: optionalIdString(),
+  isActive: z.boolean().default(true).optional(),
 });
 
 export const locationUpdateSchema = locationSchema.partial();
@@ -57,10 +57,10 @@ export const locationUpdateSchema = locationSchema.partial();
 // ============================================
 
 export const departmentSchema = z.object({
-  name: z.string().min(2).max(100),
+  name: z.string().max(100).optional(),
   code: z.string().max(20).optional(),
-  companyId: idString(),
-  isActive: z.boolean().default(true),
+  companyId: optionalIdString(),
+  isActive: z.boolean().default(true).optional(),
 });
 
 export const departmentUpdateSchema = departmentSchema.partial();
@@ -70,17 +70,17 @@ export const departmentUpdateSchema = departmentSchema.partial();
 // ============================================
 
 export const employeeSchema = z.object({
-  employeeCode: z.string().min(2).max(20),
-  firstName: z.string().min(2).max(50),
-  lastName: z.string().min(2).max(50),
-  email: z.string().email(),
+  employeeCode: z.string().max(20).optional(),
+  firstName: z.string().max(50).optional(),
+  lastName: z.string().max(50).optional(),
+  email: z.string().email().optional().or(z.literal('')),
   phone: z.string().max(15).optional(),
   designation: z.string().max(100).optional(),
   joiningDate: z.coerce.date().optional(),
-  companyId: idString(),
-  locationId: idString(),
+  companyId: optionalIdString(),
+  locationId: optionalIdString(),
   departmentId: optionalIdString(),
-  isActive: z.boolean().default(true),
+  isActive: z.boolean().default(true).optional(),
 });
 
 export const employeeUpdateSchema = employeeSchema.partial();
@@ -112,9 +112,9 @@ export const systemStatusEnum = z.enum([
 ]);
 
 export const systemSchema = z.object({
-  assetTag: z.string().min(2).max(50),
+  assetTag: z.string().max(50).optional(),
   serialNumber: z.string().max(100).optional(),
-  productType: productTypeEnum,
+  productType: productTypeEnum.optional(),
   manufacturer: z.string().max(100).optional(),
   model: z.string().max(100).optional(),
 
@@ -145,13 +145,13 @@ export const systemSchema = z.object({
   amcEndDate: z.coerce.date().optional(),
 
   // Status & Assignment
-  status: systemStatusEnum.default('IN_STOCK'),
+  status: systemStatusEnum.default('IN_STOCK').optional(),
   condition: z.string().max(100).optional(),
   remarks: z.string().max(1000).optional(),
 
   // Relations
-  companyId: idString(),
-  locationId: idString(),
+  companyId: optionalIdString(),
+  locationId: optionalIdString(),
   departmentId: optionalIdString(),
   currentUserId: optionalIdString(),
   previousUserId: optionalIdString(),
@@ -203,14 +203,14 @@ export const mobileSchema = z.object({
   invoiceNumber: z.string().max(50).optional(),
 
   // Status
-  status: mobileStatusEnum,
+  status: mobileStatusEnum.optional(),
   allocationDate: z.coerce.date().optional(),
   returnDate: z.coerce.date().optional(),
   remarks: z.string().max(1000).optional(),
 
   // Relations
-  companyId: idString(),
-  locationId: idString(),
+  companyId: optionalIdString(),
+  locationId: optionalIdString(),
   employeeId: optionalIdString(),
 });
 
@@ -252,22 +252,22 @@ export const softwareCategoryEnum = z.enum([
 ]);
 
 export const softwareSchema = z.object({
-  name: z.string().min(2).max(100),
+  name: z.string().max(100).optional(),
   version: z.string().max(50).optional(),
   publisher: z.string().max(100).optional(),
-  category: softwareCategoryEnum,
+  category: softwareCategoryEnum.optional(),
   description: z.string().max(1000).optional(),
 
   // License Details
-  licenseType: licenseTypeEnum,
+  licenseType: licenseTypeEnum.optional(),
   licenseKey: z.string().max(500).optional(),
-  totalLicenses: z.coerce.number().int().min(1).default(1),
-  usedLicenses: z.coerce.number().int().min(0).default(0),
+  totalLicenses: z.coerce.number().int().min(0).default(1).optional(),
+  usedLicenses: z.coerce.number().int().min(0).default(0).optional(),
 
   // Cost
   costPerLicense: z.coerce.number().min(0).optional(),
   totalCost: z.coerce.number().min(0).optional(),
-  currency: z.string().default('INR'),
+  currency: z.string().default('INR').optional(),
 
   // Purchase & Renewal
   purchaseDate: z.coerce.date().optional(),
@@ -278,11 +278,11 @@ export const softwareSchema = z.object({
   vendorId: optionalIdString(),
 
   // Status
-  isActive: z.boolean().default(true),
+  isActive: z.boolean().default(true).optional(),
   remarks: z.string().max(1000).optional(),
 
   // Relations
-  companyId: idString(),
+  companyId: optionalIdString(),
   locationId: optionalIdString(),
 });
 
@@ -342,33 +342,33 @@ export const employeeTypeEnum = z.enum(['NEW', 'EXISTING']);
 export const priorityEnum = z.enum(['LOW', 'NORMAL', 'HIGH', 'URGENT']);
 
 export const requestSchema = z.object({
-  requestType: requestTypeEnum,
-  priority: priorityEnum,
+  requestType: requestTypeEnum.optional(),
+  priority: priorityEnum.optional(),
 
   // Requester Details
-  employeeType: employeeTypeEnum,
+  employeeType: employeeTypeEnum.optional(),
   requesterName: z.string().max(100).optional(),
-  requesterEmail: z.string().email().optional(),
+  requesterEmail: z.string().email().optional().or(z.literal('')),
   requesterPhone: z.string().max(15).optional(),
   joiningDate: z.coerce.date().optional(),
 
   // Request Details
-  subject: z.string().min(5).max(200),
+  subject: z.string().max(200).optional(),
   description: z.string().max(2000).optional(),
   justification: z.string().max(1000).optional(),
 
   // Asset Requirements
   assetType: z.string().max(100).optional(),
   specifications: z.string().max(1000).optional(),
-  quantity: z.coerce.number().int().min(1),
+  quantity: z.coerce.number().int().min(1).optional(),
 
   // Access Requirements
   accessRequirements: z.string().max(1000).optional(),
   softwareRequirements: z.string().max(1000).optional(),
 
   // Relations
-  companyId: idString(),
-  locationId: idString(),
+  companyId: optionalIdString(),
+  locationId: optionalIdString(),
   departmentId: optionalIdString(),
   requesterId: optionalIdString(),
 });
