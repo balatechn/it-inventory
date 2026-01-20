@@ -69,34 +69,45 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validated = softwareSchema.parse(body);
 
-    // Try to save to database, if it fails return mock success for demo
-    try {
-      const software = await prisma.software.create({
-        data: validated as any,
-      });
-
-      // Create audit log
-      await createAuditLog({
-        action: 'CREATE',
-        entityType: 'Software',
-        entityId: software.id,
-        newValues: software as unknown as Record<string, unknown>,
-        companyId: software.companyId,
-        performedBy: 'Admin',
-      });
-
-      return NextResponse.json(software, { status: 201 });
-    } catch (dbError) {
-      // Database not connected - return mock success for demo purposes
-      console.log('Database not connected, returning mock response');
-      const mockSoftware = {
-        id: `sw_${Date.now()}`,
-        ...validated,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      return NextResponse.json(mockSoftware, { status: 201 });
+    // Clean up empty strings to null for optional fields
+    const cleanedData: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(validated)) {
+      if (value === '' || value === undefined) {
+        cleanedData[key] = null;
+      } else {
+        cleanedData[key] = value;
+      }
     }
+
+    // Set defaults if not provided
+    if (!cleanedData.licenseType) {
+      cleanedData.licenseType = 'PERPETUAL';
+    }
+    if (!cleanedData.category) {
+      cleanedData.category = 'OTHER';
+    }
+    if (cleanedData.totalLicenses === null || cleanedData.totalLicenses === undefined) {
+      cleanedData.totalLicenses = 1;
+    }
+    if (cleanedData.usedLicenses === null || cleanedData.usedLicenses === undefined) {
+      cleanedData.usedLicenses = 0;
+    }
+
+    const software = await prisma.software.create({
+      data: cleanedData as any,
+    });
+
+    // Create audit log
+    await createAuditLog({
+      action: 'CREATE',
+      entityType: 'Software',
+      entityId: software.id,
+      newValues: software as unknown as Record<string, unknown>,
+      companyId: software.companyId,
+      performedBy: 'Admin',
+    });
+
+    return NextResponse.json(software, { status: 201 });
   } catch (error: any) {
     console.error('Error creating software:', error);
     
@@ -107,8 +118,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (error.code === 'P2003') {
+      return NextResponse.json(
+        { error: 'Invalid reference: company, location, or vendor not found' },
+        { status: 400 }
+      );
+    }
+
     return NextResponse.json(
-      { error: 'Failed to create software' },
+      { error: 'Failed to create software', details: error.message },
       { status: 500 }
     );
   }

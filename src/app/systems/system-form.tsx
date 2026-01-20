@@ -94,13 +94,14 @@ export function SystemForm({ initialData, isEditing = false }: SystemFormProps) 
         body: JSON.stringify(data),
       });
 
+      const result = await response.json();
+
       if (response.ok) {
         router.push('/systems');
         router.refresh();
       } else {
-        const error = await response.json();
-        console.error('Failed to save system:', error);
-        alert('Failed to save system. Please try again.');
+        console.error('Failed to save system:', result);
+        alert(result.error || 'Failed to save system. Please try again.');
       }
     } catch (error) {
       console.error('Error saving system:', error);

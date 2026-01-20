@@ -67,34 +67,36 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validated = mobileSchema.parse(body);
 
-    // Try to save to database, if it fails return mock success for demo
-    try {
-      const mobile = await prisma.mobile.create({
-        data: validated as any,
-      });
-
-      // Create audit log
-      await createAuditLog({
-        action: 'CREATE',
-        entityType: 'Mobile',
-        entityId: mobile.id,
-        newValues: mobile as unknown as Record<string, unknown>,
-        companyId: mobile.companyId,
-        performedBy: 'Admin',
-      });
-
-      return NextResponse.json(mobile, { status: 201 });
-    } catch (dbError) {
-      // Database not connected - return mock success for demo purposes
-      console.log('Database not connected, returning mock response');
-      const mockMobile = {
-        id: `mob_${Date.now()}`,
-        ...validated,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      return NextResponse.json(mockMobile, { status: 201 });
+    // Clean up empty strings to null for optional fields
+    const cleanedData: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(validated)) {
+      if (value === '' || value === undefined) {
+        cleanedData[key] = null;
+      } else {
+        cleanedData[key] = value;
+      }
     }
+
+    // Set default status if not provided
+    if (!cleanedData.status) {
+      cleanedData.status = 'ACTIVE';
+    }
+
+    const mobile = await prisma.mobile.create({
+      data: cleanedData as any,
+    });
+
+    // Create audit log
+    await createAuditLog({
+      action: 'CREATE',
+      entityType: 'Mobile',
+      entityId: mobile.id,
+      newValues: mobile as unknown as Record<string, unknown>,
+      companyId: mobile.companyId,
+      performedBy: 'Admin',
+    });
+
+    return NextResponse.json(mobile, { status: 201 });
   } catch (error: any) {
     console.error('Error creating mobile:', error);
     
@@ -105,8 +107,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (error.code === 'P2003') {
+      return NextResponse.json(
+        { error: 'Invalid reference: company, location, or employee not found' },
+        { status: 400 }
+      );
+    }
+
     return NextResponse.json(
-      { error: 'Failed to create mobile' },
+      { error: 'Failed to create mobile', details: error.message },
       { status: 500 }
     );
   }
