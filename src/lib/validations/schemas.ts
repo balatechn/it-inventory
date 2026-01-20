@@ -4,6 +4,11 @@ import { z } from 'zod';
 // COMMON SCHEMAS
 // ============================================
 
+// Helper for ID validation - allows any string (for mock data compatibility)
+// In production with real database, you can change this to z.string().cuid()
+const idString = () => z.string().min(1);
+const optionalIdString = () => z.string().min(1).optional();
+
 export const paginationSchema = z.object({
   page: z.coerce.number().min(1).default(1),
   limit: z.coerce.number().min(1).max(100).default(10),
@@ -41,7 +46,7 @@ export const locationSchema = z.object({
   address: z.string().max(500).optional(),
   city: z.string().min(2).max(50),
   state: z.string().default('Karnataka'),
-  companyId: z.string().cuid(),
+  companyId: idString(),
   isActive: z.boolean().default(true),
 });
 
@@ -54,7 +59,7 @@ export const locationUpdateSchema = locationSchema.partial();
 export const departmentSchema = z.object({
   name: z.string().min(2).max(100),
   code: z.string().max(20).optional(),
-  companyId: z.string().cuid(),
+  companyId: idString(),
   isActive: z.boolean().default(true),
 });
 
@@ -72,9 +77,9 @@ export const employeeSchema = z.object({
   phone: z.string().max(15).optional(),
   designation: z.string().max(100).optional(),
   joiningDate: z.coerce.date().optional(),
-  companyId: z.string().cuid(),
-  locationId: z.string().cuid(),
-  departmentId: z.string().cuid().optional(),
+  companyId: idString(),
+  locationId: idString(),
+  departmentId: optionalIdString(),
   isActive: z.boolean().default(true),
 });
 
@@ -130,7 +135,7 @@ export const systemSchema = z.object({
   invoiceNumber: z.string().max(50).optional(),
   invoiceDate: z.coerce.date().optional(),
   poNumber: z.string().max(50).optional(),
-  vendorId: z.string().cuid().optional(),
+  vendorId: optionalIdString(),
 
   // Maintenance
   lastMaintenanceDate: z.coerce.date().optional(),
@@ -145,11 +150,11 @@ export const systemSchema = z.object({
   remarks: z.string().max(1000).optional(),
 
   // Relations
-  companyId: z.string().cuid(),
-  locationId: z.string().cuid(),
-  departmentId: z.string().cuid().optional(),
-  currentUserId: z.string().cuid().optional(),
-  previousUserId: z.string().cuid().optional(),
+  companyId: idString(),
+  locationId: idString(),
+  departmentId: optionalIdString(),
+  currentUserId: optionalIdString(),
+  previousUserId: optionalIdString(),
 });
 
 export const systemUpdateSchema = systemSchema.partial();
@@ -204,9 +209,9 @@ export const mobileSchema = z.object({
   remarks: z.string().max(1000).optional(),
 
   // Relations
-  companyId: z.string().cuid(),
-  locationId: z.string().cuid(),
-  employeeId: z.string().cuid().optional(),
+  companyId: idString(),
+  locationId: idString(),
+  employeeId: optionalIdString(),
 });
 
 export const mobileUpdateSchema = mobileSchema.partial();
@@ -270,15 +275,15 @@ export const softwareSchema = z.object({
   renewalDate: z.coerce.date().optional(),
   invoiceNumber: z.string().max(50).optional(),
   poNumber: z.string().max(50).optional(),
-  vendorId: z.string().cuid().optional(),
+  vendorId: optionalIdString(),
 
   // Status
   isActive: z.boolean().default(true),
   remarks: z.string().max(1000).optional(),
 
   // Relations
-  companyId: z.string().cuid(),
-  locationId: z.string().cuid().optional(),
+  companyId: idString(),
+  locationId: optionalIdString(),
 });
 
 export const softwareUpdateSchema = softwareSchema.partial();
@@ -301,8 +306,8 @@ export const softwareLicenseSchema = z.object({
   expiryDate: z.coerce.date().optional(),
   isActive: z.boolean().default(true),
   remarks: z.string().max(1000).optional(),
-  softwareId: z.string().cuid(),
-  employeeId: z.string().cuid().optional(),
+  softwareId: idString(),
+  employeeId: optionalIdString(),
 });
 
 export const softwareLicenseUpdateSchema = softwareLicenseSchema.partial();
@@ -362,17 +367,17 @@ export const requestSchema = z.object({
   softwareRequirements: z.string().max(1000).optional(),
 
   // Relations
-  companyId: z.string().cuid(),
-  locationId: z.string().cuid(),
-  departmentId: z.string().cuid().optional(),
-  requesterId: z.string().cuid().optional(),
+  companyId: idString(),
+  locationId: idString(),
+  departmentId: optionalIdString(),
+  requesterId: optionalIdString(),
 });
 
 export const requestUpdateSchema = z.object({
   ...requestSchema.partial().shape,
   status: requestStatusEnum.optional(),
   approvalRemarks: z.string().max(1000).optional(),
-  approverId: z.string().cuid().optional(),
+  approverId: optionalIdString(),
 });
 
 export const requestFilterSchema = z.object({
