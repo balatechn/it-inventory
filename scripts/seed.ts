@@ -3,7 +3,7 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('Starting database seed...');
+  console.log('🌱 Starting seed...');
 
   // Create Companies
   const companies = await Promise.all([
@@ -11,510 +11,350 @@ async function main() {
       where: { code: 'ISKY' },
       update: {},
       create: {
-        name: 'ISKY',
         code: 'ISKY',
-        address: 'Industrial Area, Ludhiana, Punjab',
-        status: 'ACTIVE',
+        name: 'ISKY Technologies',
+        description: 'IT Solutions Provider',
+        isActive: true,
       },
     }),
     prisma.company.upsert({
       where: { code: 'NCPL' },
       update: {},
       create: {
-        name: 'National Commodities Pvt Ltd',
         code: 'NCPL',
-        address: 'Commercial Complex, Delhi',
-        status: 'ACTIVE',
+        name: 'National Computers Pvt Ltd',
+        description: 'Computer Hardware & Services',
+        isActive: true,
       },
     }),
     prisma.company.upsert({
       where: { code: 'NIPL' },
       update: {},
       create: {
-        name: 'National Industries Pvt Ltd',
         code: 'NIPL',
-        address: 'Industrial Hub, Mumbai',
-        status: 'ACTIVE',
+        name: 'National Industries Pvt Ltd',
+        description: 'Manufacturing',
+        isActive: true,
       },
     }),
     prisma.company.upsert({
       where: { code: 'NRPL' },
       update: {},
       create: {
-        name: 'National Resources Pvt Ltd',
         code: 'NRPL',
-        address: 'Tech Park, Bangalore',
-        status: 'ACTIVE',
+        name: 'National Resources Pvt Ltd',
+        description: 'Resource Management',
+        isActive: true,
       },
     }),
     prisma.company.upsert({
-      where: { code: 'RAC' },
+      where: { code: 'RAINLAND' },
       update: {},
       create: {
+        code: 'RAINLAND',
         name: 'Rainland Auto Corp',
-        code: 'RAC',
-        address: 'Auto Zone, Chennai',
-        status: 'ACTIVE',
+        description: 'Automotive Solutions',
+        isActive: true,
       },
     }),
   ]);
 
-  console.log(`Created ${companies.length} companies`);
+  console.log(`✅ Created ${companies.length} companies`);
 
-  // Create Locations
-  const locations = await Promise.all([
-    prisma.location.upsert({
-      where: { id: 'loc-ludhiana-hq' },
+  // Create Locations for each company
+  const locationData = [
+    { code: 'HO-BLR', name: 'Head Office - Bangalore', city: 'Bangalore', state: 'Karnataka', company: companies[0] },
+    { code: 'BR-CHN', name: 'Branch Office - Chennai', city: 'Chennai', state: 'Tamil Nadu', company: companies[0] },
+    { code: 'HO-LDH', name: 'Head Office - Ludhiana', city: 'Ludhiana', state: 'Punjab', company: companies[1] },
+    { code: 'BR-DEL', name: 'Branch Office - Delhi', city: 'Delhi', state: 'Delhi', company: companies[1] },
+    { code: 'HO-MUM', name: 'Head Office - Mumbai', city: 'Mumbai', state: 'Maharashtra', company: companies[2] },
+    { code: 'WH-PUN', name: 'Warehouse - Pune', city: 'Pune', state: 'Maharashtra', company: companies[2] },
+    { code: 'HO-HYD', name: 'Head Office - Hyderabad', city: 'Hyderabad', state: 'Telangana', company: companies[3] },
+    { code: 'RL-BLR', name: 'Rainland - Bangalore', city: 'Bangalore', state: 'Karnataka', company: companies[4] },
+    { code: 'RL-MNG', name: 'Rainland - Mangaluru', city: 'Mangaluru', state: 'Karnataka', company: companies[4] },
+  ];
+
+  const locations = await Promise.all(
+    locationData.map((loc) =>
+      prisma.location.upsert({
+        where: { code: loc.code },
+        update: {},
+        create: {
+          code: loc.code,
+          name: loc.name,
+          city: loc.city,
+          state: loc.state,
+          companyId: loc.company.id,
+          isActive: true,
+        },
+      })
+    )
+  );
+
+  console.log(`✅ Created ${locations.length} locations`);
+
+  // Create Departments
+  const deptNames = ['IT', 'HR', 'Finance', 'Sales', 'Operations', 'Admin', 'Management'];
+  const departments: any[] = [];
+  
+  for (const company of companies) {
+    for (const deptName of deptNames) {
+      const dept = await prisma.department.upsert({
+        where: {
+          companyId_name: {
+            companyId: company.id,
+            name: deptName,
+          },
+        },
+        update: {},
+        create: {
+          name: deptName,
+          code: `${company.code}-${deptName.toUpperCase().slice(0, 3)}`,
+          companyId: company.id,
+          isActive: true,
+        },
+      });
+      departments.push(dept);
+    }
+  }
+
+  console.log(`✅ Created ${departments.length} departments`);
+
+  // Create Vendors
+  const vendors = await Promise.all([
+    prisma.vendor.upsert({
+      where: { name: 'Dell Technologies' },
       update: {},
       create: {
-        id: 'loc-ludhiana-hq',
-        name: 'Ludhiana HQ',
-        address: 'Industrial Area, Phase 1, Ludhiana',
-        city: 'Ludhiana',
-        state: 'Punjab',
-        pincode: '141001',
-        companyId: companies[0].id,
-        status: 'ACTIVE',
-      },
-    }),
-    prisma.location.upsert({
-      where: { id: 'loc-delhi-office' },
-      update: {},
-      create: {
-        id: 'loc-delhi-office',
-        name: 'Delhi Office',
-        address: 'Connaught Place',
-        city: 'New Delhi',
-        state: 'Delhi',
-        pincode: '110001',
-        companyId: companies[1].id,
-        status: 'ACTIVE',
-      },
-    }),
-    prisma.location.upsert({
-      where: { id: 'loc-mumbai-office' },
-      update: {},
-      create: {
-        id: 'loc-mumbai-office',
-        name: 'Mumbai Office',
-        address: 'Andheri East',
-        city: 'Mumbai',
-        state: 'Maharashtra',
-        pincode: '400069',
-        companyId: companies[2].id,
-        status: 'ACTIVE',
-      },
-    }),
-    prisma.location.upsert({
-      where: { id: 'loc-bangalore-office' },
-      update: {},
-      create: {
-        id: 'loc-bangalore-office',
-        name: 'Bangalore Office',
-        address: 'Electronic City',
+        name: 'Dell Technologies',
+        contactPerson: 'Rahul Sharma',
+        email: 'sales@dell.com',
+        phone: '+91 9876543210',
         city: 'Bangalore',
         state: 'Karnataka',
-        pincode: '560100',
-        companyId: companies[3].id,
-        status: 'ACTIVE',
+        isActive: true,
       },
     }),
-    prisma.location.upsert({
-      where: { id: 'loc-chennai-office' },
+    prisma.vendor.upsert({
+      where: { name: 'HP India' },
       update: {},
       create: {
-        id: 'loc-chennai-office',
-        name: 'Chennai Office',
-        address: 'OMR Road',
-        city: 'Chennai',
-        state: 'Tamil Nadu',
-        pincode: '600096',
-        companyId: companies[4].id,
-        status: 'ACTIVE',
+        name: 'HP India',
+        contactPerson: 'Priya Patel',
+        email: 'sales@hp.com',
+        phone: '+91 9876543211',
+        city: 'Mumbai',
+        state: 'Maharashtra',
+        isActive: true,
+      },
+    }),
+    prisma.vendor.upsert({
+      where: { name: 'Lenovo India' },
+      update: {},
+      create: {
+        name: 'Lenovo India',
+        contactPerson: 'Amit Kumar',
+        email: 'sales@lenovo.com',
+        phone: '+91 9876543212',
+        city: 'Delhi',
+        state: 'Delhi',
+        isActive: true,
+      },
+    }),
+    prisma.vendor.upsert({
+      where: { name: 'Microsoft India' },
+      update: {},
+      create: {
+        name: 'Microsoft India',
+        contactPerson: 'Neha Singh',
+        email: 'sales@microsoft.com',
+        phone: '+91 9876543213',
+        city: 'Hyderabad',
+        state: 'Telangana',
+        isActive: true,
       },
     }),
   ]);
 
-  console.log(`Created ${locations.length} locations`);
+  console.log(`✅ Created ${vendors.length} vendors`);
 
-  // Create Users (Employees)
-  const users = await Promise.all([
-    prisma.user.upsert({
-      where: { email: 'admin@isky.com' },
-      update: {},
-      create: {
-        email: 'admin@isky.com',
-        name: 'Admin User',
-        role: 'ADMIN',
-        department: 'IT',
-        companyId: companies[0].id,
-        locationId: locations[0].id,
-        status: 'ACTIVE',
-      },
-    }),
-    prisma.user.upsert({
-      where: { email: 'john.doe@isky.com' },
-      update: {},
-      create: {
-        email: 'john.doe@isky.com',
-        name: 'John Doe',
-        role: 'EMPLOYEE',
-        department: 'Engineering',
-        designation: 'Software Engineer',
-        employeeCode: 'ISKY-001',
-        companyId: companies[0].id,
-        locationId: locations[0].id,
-        status: 'ACTIVE',
-      },
-    }),
-    prisma.user.upsert({
-      where: { email: 'jane.smith@ncpl.com' },
-      update: {},
-      create: {
-        email: 'jane.smith@ncpl.com',
-        name: 'Jane Smith',
-        role: 'EMPLOYEE',
-        department: 'Sales',
-        designation: 'Sales Manager',
-        employeeCode: 'NCPL-001',
-        companyId: companies[1].id,
-        locationId: locations[1].id,
-        status: 'ACTIVE',
-      },
-    }),
-    prisma.user.upsert({
-      where: { email: 'bob.johnson@nipl.com' },
-      update: {},
-      create: {
-        email: 'bob.johnson@nipl.com',
-        name: 'Bob Johnson',
-        role: 'EMPLOYEE',
-        department: 'Finance',
-        designation: 'Finance Analyst',
-        employeeCode: 'NIPL-001',
-        companyId: companies[2].id,
-        locationId: locations[2].id,
-        status: 'ACTIVE',
-      },
-    }),
-    prisma.user.upsert({
-      where: { email: 'alice.wilson@nrpl.com' },
-      update: {},
-      create: {
-        email: 'alice.wilson@nrpl.com',
-        name: 'Alice Wilson',
-        role: 'MANAGER',
-        department: 'Operations',
-        designation: 'Operations Manager',
-        employeeCode: 'NRPL-001',
-        companyId: companies[3].id,
-        locationId: locations[3].id,
-        status: 'ACTIVE',
-      },
-    }),
-  ]);
+  // Create Employees
+  const employeeData = [
+    { firstName: 'John', lastName: 'Smith', email: 'john.smith@isky.com', designation: 'IT Manager', companyIdx: 0, locationIdx: 0, deptName: 'IT' },
+    { firstName: 'Jane', lastName: 'Doe', email: 'jane.doe@ncpl.com', designation: 'HR Manager', companyIdx: 1, locationIdx: 2, deptName: 'HR' },
+    { firstName: 'Mike', lastName: 'Johnson', email: 'mike.johnson@nipl.com', designation: 'Finance Head', companyIdx: 2, locationIdx: 4, deptName: 'Finance' },
+    { firstName: 'Sarah', lastName: 'Wilson', email: 'sarah.wilson@nrpl.com', designation: 'Sales Director', companyIdx: 3, locationIdx: 6, deptName: 'Sales' },
+    { firstName: 'Tom', lastName: 'Brown', email: 'tom.brown@rainland.com', designation: 'Operations Manager', companyIdx: 4, locationIdx: 7, deptName: 'Operations' },
+    { firstName: 'Alice', lastName: 'Davis', email: 'alice.davis@isky.com', designation: 'Software Developer', companyIdx: 0, locationIdx: 0, deptName: 'IT' },
+    { firstName: 'Bob', lastName: 'Miller', email: 'bob.miller@ncpl.com', designation: 'System Admin', companyIdx: 1, locationIdx: 2, deptName: 'IT' },
+  ];
 
-  console.log(`Created ${users.length} users`);
+  const employees = await Promise.all(
+    employeeData.map(async (emp, idx) => {
+      const dept = departments.find(
+        (d) => d.name === emp.deptName && d.companyId === companies[emp.companyIdx].id
+      );
+      return prisma.employee.upsert({
+        where: { email: emp.email },
+        update: {},
+        create: {
+          employeeCode: `EMP${String(idx + 1).padStart(4, '0')}`,
+          firstName: emp.firstName,
+          lastName: emp.lastName,
+          email: emp.email,
+          designation: emp.designation,
+          companyId: companies[emp.companyIdx].id,
+          locationId: locations[emp.locationIdx].id,
+          departmentId: dept?.id,
+          isActive: true,
+        },
+      });
+    })
+  );
 
-  // Create Systems (IT Assets)
-  const systems = await Promise.all([
-    prisma.system.create({
-      data: {
-        assetTag: 'ISKY-LP-001',
-        serialNumber: 'SN-DELL-001',
-        productType: 'Laptop',
-        brand: 'Dell',
-        model: 'Latitude 5520',
-        processor: 'Intel Core i7-1185G7',
-        ramGB: 16,
-        storageType: 'SSD',
-        storageGB: 512,
-        operatingSystem: 'Windows 11 Pro',
-        purchaseDate: new Date('2023-01-15'),
-        purchaseCost: 75000,
-        warrantyExpiry: new Date('2026-01-15'),
-        status: 'ACTIVE',
-        companyId: companies[0].id,
-        locationId: locations[0].id,
-        employeeId: users[1].id,
-      },
-    }),
-    prisma.system.create({
-      data: {
-        assetTag: 'NCPL-DT-001',
-        serialNumber: 'SN-HP-001',
-        productType: 'Desktop',
-        brand: 'HP',
-        model: 'ProDesk 400 G7',
-        processor: 'Intel Core i5-10500',
-        ramGB: 8,
-        storageType: 'SSD',
-        storageGB: 256,
-        operatingSystem: 'Windows 10 Pro',
-        purchaseDate: new Date('2022-08-20'),
-        purchaseCost: 55000,
-        warrantyExpiry: new Date('2025-08-20'),
-        status: 'ACTIVE',
-        companyId: companies[1].id,
-        locationId: locations[1].id,
-        employeeId: users[2].id,
-      },
-    }),
-    prisma.system.create({
-      data: {
-        assetTag: 'NIPL-LP-001',
-        serialNumber: 'SN-LENOVO-001',
-        productType: 'Laptop',
-        brand: 'Lenovo',
-        model: 'ThinkPad T14',
-        processor: 'AMD Ryzen 5 PRO 4650U',
-        ramGB: 16,
-        storageType: 'SSD',
-        storageGB: 512,
-        operatingSystem: 'Windows 11 Pro',
-        purchaseDate: new Date('2023-03-10'),
-        purchaseCost: 82000,
-        warrantyExpiry: new Date('2026-03-10'),
-        status: 'IN_REPAIR',
-        companyId: companies[2].id,
-        locationId: locations[2].id,
-        employeeId: users[3].id,
-      },
-    }),
-    prisma.system.create({
-      data: {
-        assetTag: 'NRPL-PR-001',
-        serialNumber: 'SN-HP-PR-001',
-        productType: 'Printer',
-        brand: 'HP',
-        model: 'LaserJet Pro M404dn',
-        purchaseDate: new Date('2022-12-01'),
-        purchaseCost: 35000,
-        warrantyExpiry: new Date('2024-12-01'),
-        status: 'ACTIVE',
-        companyId: companies[3].id,
-        locationId: locations[3].id,
-      },
-    }),
-    prisma.system.create({
-      data: {
-        assetTag: 'RAC-LP-001',
-        serialNumber: 'SN-APPLE-001',
-        productType: 'Laptop',
-        brand: 'Apple',
-        model: 'MacBook Pro 14"',
-        processor: 'Apple M2 Pro',
-        ramGB: 16,
-        storageType: 'SSD',
-        storageGB: 512,
-        operatingSystem: 'macOS Ventura',
-        purchaseDate: new Date('2023-06-15'),
-        purchaseCost: 195000,
-        warrantyExpiry: new Date('2024-06-15'),
-        status: 'ACTIVE',
-        companyId: companies[4].id,
-        locationId: locations[4].id,
-      },
-    }),
-  ]);
+  console.log(`✅ Created ${employees.length} employees`);
 
-  console.log(`Created ${systems.length} systems`);
+  // Create Systems (Hardware)
+  const systemData = [
+    { assetTag: 'AST-00001', productType: 'LAPTOP', manufacturer: 'Dell', model: 'Latitude 5520', serialNumber: 'ABC123XYZ', status: 'ACTIVE', companyIdx: 1, locationIdx: 2, empIdx: 1, vendorIdx: 0, price: 85000 },
+    { assetTag: 'AST-00002', productType: 'DESKTOP', manufacturer: 'HP', model: 'ProDesk 400 G7', serialNumber: 'DEF456UVW', status: 'ACTIVE', companyIdx: 4, locationIdx: 7, empIdx: 4, vendorIdx: 1, price: 65000 },
+    { assetTag: 'AST-00003', productType: 'LAPTOP', manufacturer: 'Lenovo', model: 'ThinkPad T14', serialNumber: 'GHI789RST', status: 'IN_STOCK', companyIdx: 1, locationIdx: 2, empIdx: null, vendorIdx: 2, price: 92000 },
+    { assetTag: 'AST-00004', productType: 'PRINTER', manufacturer: 'Canon', model: 'imageRUNNER 2625i', serialNumber: 'JKL012OPQ', status: 'ACTIVE', companyIdx: 0, locationIdx: 0, empIdx: null, vendorIdx: 0, price: 125000 },
+    { assetTag: 'AST-00005', productType: 'SERVER', manufacturer: 'Dell', model: 'PowerEdge R740', serialNumber: 'MNO345LMN', status: 'ACTIVE', companyIdx: 1, locationIdx: 2, empIdx: null, vendorIdx: 0, price: 450000 },
+    { assetTag: 'AST-00006', productType: 'LAPTOP', manufacturer: 'Dell', model: 'Latitude 3520', serialNumber: 'PQR678IJK', status: 'MAINTENANCE', companyIdx: 4, locationIdx: 8, empIdx: 4, vendorIdx: 0, price: 72000 },
+  ];
+
+  const systems = await Promise.all(
+    systemData.map((sys) => {
+      const dept = departments.find((d) => d.name === 'IT' && d.companyId === companies[sys.companyIdx].id);
+      return prisma.system.create({
+        data: {
+          assetTag: sys.assetTag,
+          productType: sys.productType as any,
+          manufacturer: sys.manufacturer,
+          model: sys.model,
+          serialNumber: sys.serialNumber,
+          status: sys.status as any,
+          companyId: companies[sys.companyIdx].id,
+          locationId: locations[sys.locationIdx].id,
+          departmentId: dept?.id,
+          currentUserId: sys.empIdx !== null ? employees[sys.empIdx].id : null,
+          vendorId: vendors[sys.vendorIdx].id,
+          purchasePrice: sys.price,
+          purchaseDate: new Date('2024-01-15'),
+          warrantyEndDate: new Date('2027-01-15'),
+          processor: 'Intel Core i7',
+          ram: '16 GB',
+          storage: '512 GB SSD',
+        },
+      });
+    })
+  );
+
+  console.log(`✅ Created ${systems.length} systems`);
 
   // Create Software
-  const software = await Promise.all([
-    prisma.software.create({
-      data: {
-        name: 'Microsoft Office 365 Business',
-        vendor: 'Microsoft',
-        version: '2023',
-        category: 'Office Suite',
-        licenseType: 'SUBSCRIPTION',
-        softwareType: 'CLOUD',
-        totalLicenses: 50,
-        usedLicenses: 35,
-        licenseKey: 'XXXXX-XXXXX-XXXXX-XXXXX-XXXXX',
-        purchaseDate: new Date('2023-01-01'),
-        expiryDate: new Date('2024-01-01'),
-        purchaseCost: 250000,
-        renewalCost: 250000,
-        billingCycle: 'YEARLY',
-        status: 'ACTIVE',
-        companyId: companies[0].id,
-      },
-    }),
-    prisma.software.create({
-      data: {
-        name: 'Adobe Creative Cloud',
-        vendor: 'Adobe',
-        version: '2023',
-        category: 'Design Software',
-        licenseType: 'SUBSCRIPTION',
-        softwareType: 'DESKTOP',
-        totalLicenses: 10,
-        usedLicenses: 8,
-        purchaseDate: new Date('2023-02-15'),
-        expiryDate: new Date('2024-02-15'),
-        purchaseCost: 180000,
-        renewalCost: 180000,
-        billingCycle: 'YEARLY',
-        status: 'ACTIVE',
-        companyId: companies[0].id,
-      },
-    }),
-    prisma.software.create({
-      data: {
-        name: 'Tally Prime',
-        vendor: 'Tally Solutions',
-        version: '3.0',
-        category: 'ERP/CRM',
-        licenseType: 'PERPETUAL',
-        softwareType: 'DESKTOP',
-        totalLicenses: 20,
-        usedLicenses: 15,
-        purchaseDate: new Date('2022-06-01'),
-        purchaseCost: 150000,
-        status: 'ACTIVE',
-        companyId: companies[1].id,
-      },
-    }),
-    prisma.software.create({
-      data: {
-        name: 'AutoCAD',
-        vendor: 'Autodesk',
-        version: '2023',
-        category: 'Design Software',
-        licenseType: 'SUBSCRIPTION',
-        softwareType: 'DESKTOP',
-        totalLicenses: 5,
-        usedLicenses: 5,
-        purchaseDate: new Date('2023-04-01'),
-        expiryDate: new Date('2024-04-01'),
-        purchaseCost: 100000,
-        renewalCost: 100000,
-        billingCycle: 'YEARLY',
-        status: 'ACTIVE',
-        companyId: companies[2].id,
-      },
-    }),
-  ]);
+  const softwareData = [
+    { name: 'Microsoft 365 Business', publisher: 'Microsoft', category: 'OFFICE_SUITE', licenseType: 'SUBSCRIPTION', totalLicenses: 100, usedLicenses: 75, companyIdx: 1, vendorIdx: 3, cost: 950000 },
+    { name: 'Windows 11 Pro', publisher: 'Microsoft', category: 'OPERATING_SYSTEM', licenseType: 'PERPETUAL', totalLicenses: 150, usedLicenses: 120, companyIdx: 1, vendorIdx: 3, cost: 450000 },
+    { name: 'Adobe Creative Cloud', publisher: 'Adobe', category: 'DESIGN', licenseType: 'SUBSCRIPTION', totalLicenses: 20, usedLicenses: 18, companyIdx: 0, vendorIdx: 3, cost: 240000 },
+    { name: 'Kaspersky Endpoint Security', publisher: 'Kaspersky', category: 'ANTIVIRUS', licenseType: 'SUBSCRIPTION', totalLicenses: 200, usedLicenses: 180, companyIdx: 1, vendorIdx: 3, cost: 120000 },
+    { name: 'AutoCAD 2024', publisher: 'Autodesk', category: 'DESIGN', licenseType: 'SUBSCRIPTION', totalLicenses: 10, usedLicenses: 8, companyIdx: 2, vendorIdx: 3, cost: 180000 },
+  ];
 
-  console.log(`Created ${software.length} software entries`);
+  const software = await Promise.all(
+    softwareData.map((sw) =>
+      prisma.software.create({
+        data: {
+          name: sw.name,
+          publisher: sw.publisher,
+          category: sw.category as any,
+          licenseType: sw.licenseType as any,
+          totalLicenses: sw.totalLicenses,
+          usedLicenses: sw.usedLicenses,
+          companyId: companies[sw.companyIdx].id,
+          vendorId: vendors[sw.vendorIdx].id,
+          totalCost: sw.cost,
+          currency: 'INR',
+          purchaseDate: new Date('2024-01-01'),
+          expiryDate: new Date('2025-12-31'),
+          isActive: true,
+        },
+      })
+    )
+  );
 
-  // Create Mobiles
-  const mobiles = await Promise.all([
-    prisma.mobile.create({
-      data: {
-        mobileNumber: '9876543210',
-        operator: 'Airtel',
-        planType: 'POSTPAID',
-        deviceType: 'SMARTPHONE',
-        model: 'iPhone 14',
-        imei1: '123456789012345',
-        serialNumber: 'APPLE-SN-001',
-        simNumber: 'SIM-AIR-001',
-        dataLimit: 50,
-        monthlyRental: 999,
-        purchaseDate: new Date('2023-01-20'),
-        purchaseCost: 79900,
-        activationDate: new Date('2023-01-25'),
-        status: 'ACTIVE',
-        companyId: companies[0].id,
-        locationId: locations[0].id,
-        employeeId: users[1].id,
-      },
-    }),
-    prisma.mobile.create({
-      data: {
-        mobileNumber: '9876543211',
-        operator: 'Jio',
-        planType: 'POSTPAID',
-        deviceType: 'SMARTPHONE',
-        model: 'Samsung Galaxy S23',
-        imei1: '123456789012346',
-        serialNumber: 'SAMSUNG-SN-001',
-        simNumber: 'SIM-JIO-001',
-        dataLimit: 100,
-        monthlyRental: 799,
-        purchaseDate: new Date('2023-03-15'),
-        purchaseCost: 74999,
-        activationDate: new Date('2023-03-18'),
-        status: 'ACTIVE',
-        companyId: companies[1].id,
-        locationId: locations[1].id,
-        employeeId: users[2].id,
-      },
-    }),
-    prisma.mobile.create({
-      data: {
-        mobileNumber: '9876543212',
-        operator: 'Vodafone Idea',
-        planType: 'POSTPAID',
-        deviceType: 'DATA_CARD',
-        model: 'JioFi M2S',
-        imei1: '123456789012347',
-        dataLimit: 150,
-        monthlyRental: 499,
-        activationDate: new Date('2022-11-10'),
-        status: 'ACTIVE',
-        companyId: companies[2].id,
-        locationId: locations[2].id,
-      },
-    }),
-  ]);
+  console.log(`✅ Created ${software.length} software licenses`);
 
-  console.log(`Created ${mobiles.length} mobile entries`);
+  // Create Mobile Devices
+  const mobileData = [
+    { manufacturer: 'Apple', model: 'iPhone 14 Pro', imei1: '123456789012345', mobileNumber: '+91 98765 43210', operator: 'Airtel', status: 'ACTIVE', companyIdx: 0, locationIdx: 0, empIdx: 0, price: 129900 },
+    { manufacturer: 'Samsung', model: 'Galaxy S23 Ultra', imei1: '234567890123456', mobileNumber: '+91 98765 43211', operator: 'Jio', status: 'ACTIVE', companyIdx: 1, locationIdx: 2, empIdx: 1, price: 124999 },
+    { manufacturer: 'OnePlus', model: '11 5G', imei1: '345678901234567', mobileNumber: '+91 98765 43212', operator: 'Vodafone', status: 'ACTIVE', companyIdx: 2, locationIdx: 4, empIdx: 2, price: 61999 },
+    { manufacturer: 'Apple', model: 'iPhone 13', imei1: '456789012345678', mobileNumber: '+91 98765 43213', operator: 'Airtel', status: 'ACTIVE', companyIdx: 0, locationIdx: 0, empIdx: 5, price: 69900 },
+  ];
 
-  // Create Sample Requests
-  const requests = await Promise.all([
-    prisma.request.create({
-      data: {
-        requestNumber: 'REQ-2024-00001',
-        title: 'New Laptop for Developer',
-        description: 'Requesting a new laptop with minimum 16GB RAM and SSD for development work',
-        requestType: 'NEW_ASSET',
-        priority: 'HIGH',
-        status: 'PENDING',
-        companyId: companies[0].id,
-        locationId: locations[0].id,
-        requesterId: users[1].id,
-      },
-    }),
-    prisma.request.create({
-      data: {
-        requestNumber: 'REQ-2024-00002',
-        title: 'Software Installation - Adobe Acrobat',
-        description: 'Need Adobe Acrobat Pro for PDF editing and signing documents',
-        requestType: 'SOFTWARE',
-        priority: 'MEDIUM',
-        status: 'IN_PROGRESS',
-        companyId: companies[1].id,
-        locationId: locations[1].id,
-        requesterId: users[2].id,
-      },
-    }),
-    prisma.request.create({
-      data: {
-        requestNumber: 'REQ-2024-00003',
-        title: 'Laptop Repair - Screen Issue',
-        description: 'Laptop screen flickering, needs repair or replacement',
-        requestType: 'REPAIR',
-        priority: 'HIGH',
-        status: 'IN_PROGRESS',
-        companyId: companies[2].id,
-        locationId: locations[2].id,
-        requesterId: users[3].id,
-      },
-    }),
-  ]);
+  const mobiles = await Promise.all(
+    mobileData.map((mob) =>
+      prisma.mobile.create({
+        data: {
+          deviceType: 'Smartphone',
+          manufacturer: mob.manufacturer,
+          model: mob.model,
+          imei1: mob.imei1,
+          mobileNumber: mob.mobileNumber,
+          operator: mob.operator,
+          status: mob.status as any,
+          companyId: companies[mob.companyIdx].id,
+          locationId: locations[mob.locationIdx].id,
+          employeeId: employees[mob.empIdx].id,
+          purchasePrice: mob.price,
+          purchaseDate: new Date('2023-09-15'),
+          planType: 'Corporate',
+          monthlyRental: 999,
+        },
+      })
+    )
+  );
 
-  console.log(`Created ${requests.length} requests`);
+  console.log(`✅ Created ${mobiles.length} mobile devices`);
 
-  console.log('Database seeding completed successfully!');
+  // Create Requests
+  const requestData = [
+    { type: 'HARDWARE', priority: 'HIGH', subject: 'New Laptop for Developer', description: 'Need a new laptop for joining developer', companyIdx: 1, locationIdx: 2 },
+    { type: 'SOFTWARE', priority: 'NORMAL', subject: 'Adobe License Request', description: 'Need Adobe Creative Cloud license for design work', companyIdx: 0, locationIdx: 0 },
+    { type: 'MOBILE', priority: 'NORMAL', subject: 'Mobile Phone for Sales Rep', description: 'New mobile device required for field sales', companyIdx: 3, locationIdx: 6 },
+  ];
+
+  const requests = await Promise.all(
+    requestData.map((req, idx) => {
+      const dept = departments.find((d) => d.name === 'IT' && d.companyId === companies[req.companyIdx].id);
+      return prisma.request.create({
+        data: {
+          requestNumber: `REQ-2024-${String(idx + 1).padStart(5, '0')}`,
+          requestType: req.type as any,
+          priority: req.priority as any,
+          subject: req.subject,
+          description: req.description,
+          status: 'PENDING',
+          employeeType: 'EXISTING',
+          quantity: 1,
+          companyId: companies[req.companyIdx].id,
+          locationId: locations[req.locationIdx].id,
+          departmentId: dept?.id,
+        },
+      });
+    })
+  );
+
+  console.log(`✅ Created ${requests.length} requests`);
+
+  console.log('🎉 Seed completed successfully!');
 }
 
 main()
   .catch((e) => {
-    console.error('Error during seeding:', e);
+    console.error('❌ Seed failed:', e);
     process.exit(1);
   })
   .finally(async () => {

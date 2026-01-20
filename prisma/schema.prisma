@@ -1,13 +1,14 @@
 // IT Inventory Management System - National Group India
-// Prisma Schema for PostgreSQL
+// Prisma Schema for PostgreSQL (Supabase)
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ============================================
@@ -553,7 +554,7 @@ model RequestAttachment {
 
 model Vendor {
   id            String   @id @default(cuid())
-  name          String
+  name          String   @unique
   code          String?  @unique
   contactPerson String?
   email         String?

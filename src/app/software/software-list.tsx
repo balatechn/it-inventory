@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,7 +18,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import {
   Plus,
   Search,
-  Filter,
   Download,
   Eye,
   Edit,
@@ -27,102 +26,25 @@ import {
   AlertTriangle,
   ChevronLeft,
   ChevronRight,
+  Loader2,
 } from 'lucide-react';
 import { formatDate, formatCurrency, getDaysUntilExpiry, SOFTWARE_CATEGORIES, LICENSE_TYPES } from '@/lib/utils';
 
-// Mock data
-const mockSoftware = [
-  {
-    id: '1',
-    name: 'Microsoft 365 Business',
-    version: 'Latest',
-    publisher: 'Microsoft',
-    category: 'OFFICE_SUITE',
-    licenseType: 'SUBSCRIPTION',
-    totalLicenses: 50,
-    usedLicenses: 45,
-    costPerLicense: 850,
-    totalCost: 42500,
-    expiryDate: '2026-03-15',
-    company: 'NCPL',
-    isActive: true,
-  },
-  {
-    id: '2',
-    name: 'Windows 11 Pro',
-    version: '22H2',
-    publisher: 'Microsoft',
-    category: 'OPERATING_SYSTEM',
-    licenseType: 'PERPETUAL',
-    totalLicenses: 100,
-    usedLicenses: 89,
-    costPerLicense: 12500,
-    totalCost: 1250000,
-    expiryDate: null,
-    company: 'NCPL',
-    isActive: true,
-  },
-  {
-    id: '3',
-    name: 'Norton Antivirus',
-    version: '2024',
-    publisher: 'Symantec',
-    category: 'ANTIVIRUS',
-    licenseType: 'SUBSCRIPTION',
-    totalLicenses: 75,
-    usedLicenses: 68,
-    costPerLicense: 450,
-    totalCost: 33750,
-    expiryDate: '2026-02-01',
-    company: 'RAINLAND',
-    isActive: true,
-  },
-  {
-    id: '4',
-    name: 'AutoCAD',
-    version: '2024',
-    publisher: 'Autodesk',
-    category: 'DESIGN',
-    licenseType: 'SUBSCRIPTION',
-    totalLicenses: 5,
-    usedLicenses: 5,
-    costPerLicense: 85000,
-    totalCost: 425000,
-    expiryDate: '2026-01-30',
-    company: 'RAINLAND',
-    isActive: true,
-  },
-  {
-    id: '5',
-    name: 'Tally Prime',
-    version: '3.0',
-    publisher: 'Tally Solutions',
-    category: 'ACCOUNTING',
-    licenseType: 'PERPETUAL',
-    totalLicenses: 10,
-    usedLicenses: 8,
-    costPerLicense: 54000,
-    totalCost: 540000,
-    expiryDate: null,
-    company: 'NCPL',
-    isActive: true,
-  },
-  {
-    id: '6',
-    name: 'Adobe Creative Cloud',
-    version: '2024',
-    publisher: 'Adobe',
-    category: 'DESIGN',
-    licenseType: 'SUBSCRIPTION',
-    totalLicenses: 3,
-    usedLicenses: 3,
-    costPerLicense: 28000,
-    totalCost: 84000,
-    expiryDate: '2026-06-15',
-    company: 'ISKY',
-    isActive: true,
-  },
-];
+interface Software {
+  id: string;
+  name: string;
+  version?: string;
+  publisher?: string;
+  category: string;
+  licenseType: string;
+  totalLicenses: number;
+  usedLicenses: number;
+  costPerLicense?: number;
+  totalCost?: number;
+  expiryDate?: string | null;
+  company?: { name: string; code: string } | null;
+  isActive: boolean;
+}
 
 const categoryOptions = [
   { value: '', label: 'All Categories' },
@@ -135,32 +57,64 @@ const licenseTypeOptions = [
 ];
 
 export function SoftwareList() {
+  const [software, setSoftware] = useState<Software[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [licenseFilter, setLicenseFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
 
-  // Filter software
-  const filteredSoftware = mockSoftware.filter((sw) => {
-    const matchesSearch =
-      search === '' ||
-      sw.name.toLowerCase().includes(search.toLowerCase()) ||
-      sw.publisher.toLowerCase().includes(search.toLowerCase());
+  useEffect(() => {
+    fetchSoftware();
+  }, [currentPage, categoryFilter, licenseFilter]);
 
-    const matchesCategory = categoryFilter === '' || sw.category === categoryFilter;
-    const matchesLicense = licenseFilter === '' || sw.licenseType === licenseFilter;
+  const fetchSoftware = async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: '10',
+      });
+      if (categoryFilter) params.append('category', categoryFilter);
+      if (licenseFilter) params.append('licenseType', licenseFilter);
+      if (search) params.append('search', search);
 
-    return matchesSearch && matchesCategory && matchesLicense;
-  });
+      const response = await fetch(`/api/software?${params}`);
+      const data = await response.json();
+      
+      if (data.data) {
+        setSoftware(data.data);
+        setTotalPages(data.pagination?.totalPages || 1);
+        setTotal(data.pagination?.total || 0);
+      }
+    } catch (error) {
+      console.error('Error fetching software:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const totalPages = Math.ceil(filteredSoftware.length / itemsPerPage);
-  const paginatedSoftware = filteredSoftware.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  const handleSearch = () => {
+    setCurrentPage(1);
+    fetchSoftware();
+  };
 
-  const getExpiryBadge = (expiryDate: string | null) => {
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this software?')) return;
+    
+    try {
+      const response = await fetch(`/api/software/${id}`, { method: 'DELETE' });
+      if (response.ok) {
+        fetchSoftware();
+      }
+    } catch (error) {
+      console.error('Error deleting software:', error);
+    }
+  };
+
+  const getExpiryBadge = (expiryDate: string | null | undefined) => {
     if (!expiryDate) {
       return <Badge variant="outline">Perpetual</Badge>;
     }
@@ -181,7 +135,7 @@ export function SoftwareList() {
   };
 
   const getLicenseUsage = (used: number, total: number) => {
-    const percentage = (used / total) * 100;
+    const percentage = total > 0 ? (used / total) * 100 : 0;
     let color = 'bg-green-500';
     if (percentage >= 90) color = 'bg-red-500';
     else if (percentage >= 75) color = 'bg-amber-500';
@@ -203,9 +157,9 @@ export function SoftwareList() {
   };
 
   // Calculate summary stats
-  const totalLicenses = mockSoftware.reduce((acc, sw) => acc + sw.totalLicenses, 0);
-  const usedLicenses = mockSoftware.reduce((acc, sw) => acc + sw.usedLicenses, 0);
-  const expiringCount = mockSoftware.filter((sw) => {
+  const totalLicenses = software.reduce((acc, sw) => acc + sw.totalLicenses, 0);
+  const usedLicenses = software.reduce((acc, sw) => acc + sw.usedLicenses, 0);
+  const expiringCount = software.filter((sw) => {
     if (!sw.expiryDate) return false;
     const days = getDaysUntilExpiry(sw.expiryDate);
     return days !== null && days <= 30 && days >= 0;
@@ -233,7 +187,7 @@ export function SoftwareList() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="p-4">
           <p className="text-sm text-gray-500">Total Software</p>
-          <p className="text-2xl font-bold text-[#070B47]">{mockSoftware.length}</p>
+          <p className="text-2xl font-bold text-[#070B47]">{total}</p>
         </Card>
         <Card className="p-4">
           <p className="text-sm text-gray-500">Total Licenses</p>
@@ -260,6 +214,7 @@ export function SoftwareList() {
                   placeholder="Search by software name, publisher..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                   className="pl-10"
                 />
               </div>
@@ -268,15 +223,25 @@ export function SoftwareList() {
               <Select
                 options={categoryOptions}
                 value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
+                onChange={(e) => {
+                  setCategoryFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
                 className="w-44"
               />
               <Select
                 options={licenseTypeOptions}
                 value={licenseFilter}
-                onChange={(e) => setLicenseFilter(e.target.value)}
+                onChange={(e) => {
+                  setLicenseFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
                 className="w-44"
               />
+              <Button variant="outline" onClick={handleSearch}>
+                <Search className="h-4 w-4" />
+                Search
+              </Button>
               <Button variant="outline">
                 <Download className="h-4 w-4" />
                 Export
@@ -288,79 +253,101 @@ export function SoftwareList() {
 
       {/* Table */}
       <Card>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Software</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead>License Type</TableHead>
-              <TableHead>Usage</TableHead>
-              <TableHead>Cost</TableHead>
-              <TableHead>Expiry</TableHead>
-              <TableHead>Company</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {paginatedSoftware.map((sw) => (
-              <TableRow key={sw.id}>
-                <TableCell>
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-lg bg-[#6A89A7]/10 flex items-center justify-center">
-                      <Package className="h-5 w-5 text-[#6A89A7]" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-[#070B47]">{sw.name}</p>
-                      <p className="text-xs text-gray-500">{sw.publisher} • v{sw.version}</p>
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <Badge variant="outline">
-                    {SOFTWARE_CATEGORIES.find((c) => c.value === sw.category)?.label || sw.category}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <Badge variant={sw.licenseType === 'SUBSCRIPTION' ? 'secondary' : 'default'}>
-                    {sw.licenseType}
-                  </Badge>
-                </TableCell>
-                <TableCell className="w-32">
-                  {getLicenseUsage(sw.usedLicenses, sw.totalLicenses)}
-                </TableCell>
-                <TableCell>
-                  <p className="font-medium">{formatCurrency(sw.totalCost)}</p>
-                  <p className="text-xs text-gray-500">
-                    {formatCurrency(sw.costPerLicense)}/license
-                  </p>
-                </TableCell>
-                <TableCell>
-                  {getExpiryBadge(sw.expiryDate)}
-                </TableCell>
-                <TableCell>
-                  <Badge variant="outline">{sw.company}</Badge>
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex items-center justify-end gap-1">
-                    <Link href={`/software/${sw.id}`}>
-                      <Button variant="ghost" size="icon">
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                    </Link>
-                    <Link href={`/software/${sw.id}/edit`}>
-                      <Button variant="ghost" size="icon">
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                    </Link>
-                    <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700">
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </TableCell>
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-[#070B47]" />
+          </div>
+        ) : software.length === 0 ? (
+          <div className="text-center py-12">
+            <Package className="h-12 w-12 mx-auto text-gray-300 mb-4" />
+            <p className="text-gray-500">No software found</p>
+            <Link href="/software/new">
+              <Button className="mt-4">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Your First Software
+              </Button>
+            </Link>
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Software</TableHead>
+                <TableHead>Category</TableHead>
+                <TableHead>License Type</TableHead>
+                <TableHead>Usage</TableHead>
+                <TableHead>Cost</TableHead>
+                <TableHead>Expiry</TableHead>
+                <TableHead>Company</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {software.map((sw) => (
+                <TableRow key={sw.id}>
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-lg bg-[#6A89A7]/10 flex items-center justify-center">
+                        <Package className="h-5 w-5 text-[#6A89A7]" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-[#070B47]">{sw.name}</p>
+                        <p className="text-xs text-gray-500">{sw.publisher || '-'} {sw.version ? `• v${sw.version}` : ''}</p>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline">
+                      {SOFTWARE_CATEGORIES.find((c) => c.value === sw.category)?.label || sw.category}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={sw.licenseType === 'SUBSCRIPTION' ? 'secondary' : 'default'}>
+                      {sw.licenseType}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="w-32">
+                    {getLicenseUsage(sw.usedLicenses, sw.totalLicenses)}
+                  </TableCell>
+                  <TableCell>
+                    <p className="font-medium">{sw.totalCost ? formatCurrency(sw.totalCost) : '-'}</p>
+                    <p className="text-xs text-gray-500">
+                      {sw.costPerLicense ? `${formatCurrency(sw.costPerLicense)}/license` : '-'}
+                    </p>
+                  </TableCell>
+                  <TableCell>
+                    {getExpiryBadge(sw.expiryDate)}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{sw.company?.code || '-'}</Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <Link href={`/software/${sw.id}`}>
+                        <Button variant="ghost" size="icon">
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </Link>
+                      <Link href={`/software/${sw.id}/edit`}>
+                        <Button variant="ghost" size="icon">
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      </Link>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="text-red-500 hover:text-red-700"
+                        onClick={() => handleDelete(sw.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
 
         {/* Pagination */}
         {totalPages > 1 && (

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,100 +23,29 @@ import {
   Edit,
   Trash2,
   Smartphone,
-  Phone,
   ChevronLeft,
   ChevronRight,
+  Loader2,
 } from 'lucide-react';
 import { formatDate, formatCurrency, statusColors, MOBILE_OPERATORS } from '@/lib/utils';
 
-// Mock data
-const mockMobiles = [
-  {
-    id: '1',
-    deviceType: 'Phone',
-    manufacturer: 'Samsung',
-    model: 'Galaxy S23',
-    imei1: '123456789012345',
-    simNumber: '8901234567890123456',
-    mobileNumber: '9876543210',
-    operator: 'AIRTEL',
-    planType: 'Corporate',
-    monthlyRental: 999,
-    status: 'ACTIVE',
-    employee: 'John Smith',
-    location: 'HO – Bangalore',
-    company: 'NCPL',
-    allocationDate: '2024-01-15',
-  },
-  {
-    id: '2',
-    deviceType: 'Phone',
-    manufacturer: 'Apple',
-    model: 'iPhone 14',
-    imei1: '234567890123456',
-    simNumber: '8901234567890123457',
-    mobileNumber: '9876543211',
-    operator: 'JIO',
-    planType: 'Corporate',
-    monthlyRental: 1499,
-    status: 'ACTIVE',
-    employee: 'Jane Doe',
-    location: 'Rainland – Bangalore',
-    company: 'RAINLAND',
-    allocationDate: '2023-11-20',
-  },
-  {
-    id: '3',
-    deviceType: 'Dongle',
-    manufacturer: 'Airtel',
-    model: '4G Hotspot',
-    imei1: '345678901234567',
-    simNumber: '8901234567890123458',
-    mobileNumber: '9876543212',
-    operator: 'AIRTEL',
-    planType: 'Data Only',
-    monthlyRental: 499,
-    status: 'ACTIVE',
-    employee: 'IT Department',
-    location: 'HO – Bangalore',
-    company: 'NCPL',
-    allocationDate: '2024-02-01',
-  },
-  {
-    id: '4',
-    deviceType: 'Tablet',
-    manufacturer: 'Apple',
-    model: 'iPad Pro',
-    imei1: '456789012345678',
-    simNumber: '8901234567890123459',
-    mobileNumber: '9876543213',
-    operator: 'VI',
-    planType: 'Data Only',
-    monthlyRental: 799,
-    status: 'ACTIVE',
-    employee: 'Alice Johnson',
-    location: 'Rainland – Mangaluru',
-    company: 'RAINLAND',
-    allocationDate: '2023-08-10',
-  },
-  {
-    id: '5',
-    deviceType: 'Phone',
-    manufacturer: 'OnePlus',
-    model: '11',
-    imei1: '567890123456789',
-    simNumber: null,
-    mobileNumber: null,
-    operator: null,
-    planType: null,
-    monthlyRental: null,
-    status: 'RETURNED',
-    employee: null,
-    location: 'HO – Bangalore',
-    company: 'NCPL',
-    allocationDate: null,
-  },
-];
+interface Mobile {
+  id: string;
+  deviceType?: string;
+  manufacturer?: string;
+  model?: string;
+  imei1?: string;
+  simNumber?: string;
+  mobileNumber?: string;
+  operator?: string;
+  planType?: string;
+  monthlyRental?: number;
+  status: string;
+  employee?: { firstName: string; lastName: string } | null;
+  location?: { name: string } | null;
+  company?: { name: string; code: string } | null;
+  allocationDate?: string;
+}
 
 const statusOptions = [
   { value: '', label: 'All Statuses' },
@@ -133,52 +62,81 @@ const operatorOptions = [
 ];
 
 export function MobileList() {
+  const [mobiles, setMobiles] = useState<Mobile[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [operatorFilter, setOperatorFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
 
-  // Filter mobiles
-  const filteredMobiles = mockMobiles.filter((mobile) => {
-    const matchesSearch =
-      search === '' ||
-      mobile.mobileNumber?.includes(search) ||
-      mobile.employee?.toLowerCase().includes(search.toLowerCase()) ||
-      mobile.model.toLowerCase().includes(search.toLowerCase());
+  useEffect(() => {
+    fetchMobiles();
+  }, [currentPage, statusFilter, operatorFilter]);
 
-    const matchesStatus = statusFilter === '' || mobile.status === statusFilter;
-    const matchesOperator = operatorFilter === '' || mobile.operator === operatorFilter;
+  const fetchMobiles = async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: '10',
+      });
+      if (statusFilter) params.append('status', statusFilter);
+      if (operatorFilter) params.append('operator', operatorFilter);
+      if (search) params.append('search', search);
 
-    return matchesSearch && matchesStatus && matchesOperator;
-  });
+      const response = await fetch(`/api/mobile?${params}`);
+      const data = await response.json();
+      
+      if (data.data) {
+        setMobiles(data.data);
+        setTotalPages(data.pagination?.totalPages || 1);
+        setTotal(data.pagination?.total || 0);
+      }
+    } catch (error) {
+      console.error('Error fetching mobiles:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const totalPages = Math.ceil(filteredMobiles.length / itemsPerPage);
-  const paginatedMobiles = filteredMobiles.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  const handleSearch = () => {
+    setCurrentPage(1);
+    fetchMobiles();
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this mobile device?')) return;
+    
+    try {
+      const response = await fetch(`/api/mobile/${id}`, { method: 'DELETE' });
+      if (response.ok) {
+        fetchMobiles();
+      }
+    } catch (error) {
+      console.error('Error deleting mobile:', error);
+    }
+  };
 
   // Calculate summary stats
-  const activeCount = mockMobiles.filter((m) => m.status === 'ACTIVE').length;
-  const totalRental = mockMobiles
-    .filter((m) => m.status === 'ACTIVE' && m.monthlyRental)
-    .reduce((acc, m) => acc + (m.monthlyRental || 0), 0);
+  const activeCount = mobiles.filter((m) => m.status === 'ACTIVE').length;
+  const totalRental = mobiles.reduce((acc, m) => acc + (m.monthlyRental || 0), 0);
 
   return (
     <div className="space-y-6">
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[#070B47]">Mobile Devices & SIM</h1>
+          <h1 className="text-2xl font-bold text-[#070B47]">Mobile & SIM Management</h1>
           <p className="text-gray-500 text-sm mt-1">
-            Manage mobile devices, SIM cards, and data plans
+            Manage mobile devices and SIM allocations
           </p>
         </div>
         <Link href="/mobile/new">
           <Button>
             <Plus className="h-4 w-4" />
-            Add Mobile
+            Add Device
           </Button>
         </Link>
       </div>
@@ -187,21 +145,19 @@ export function MobileList() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="p-4">
           <p className="text-sm text-gray-500">Total Devices</p>
-          <p className="text-2xl font-bold text-[#070B47]">{mockMobiles.length}</p>
+          <p className="text-2xl font-bold text-[#070B47]">{total}</p>
         </Card>
         <Card className="p-4">
-          <p className="text-sm text-gray-500">Active Devices</p>
+          <p className="text-sm text-gray-500">Active</p>
           <p className="text-2xl font-bold text-green-600">{activeCount}</p>
+        </Card>
+        <Card className="p-4">
+          <p className="text-sm text-gray-500">Inactive/Other</p>
+          <p className="text-2xl font-bold text-gray-600">{mobiles.length - activeCount}</p>
         </Card>
         <Card className="p-4">
           <p className="text-sm text-gray-500">Monthly Rental</p>
           <p className="text-2xl font-bold text-[#6A89A7]">{formatCurrency(totalRental)}</p>
-        </Card>
-        <Card className="p-4">
-          <p className="text-sm text-gray-500">Unallocated</p>
-          <p className="text-2xl font-bold text-amber-600">
-            {mockMobiles.filter((m) => !m.employee).length}
-          </p>
         </Card>
       </div>
 
@@ -213,9 +169,10 @@ export function MobileList() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
-                  placeholder="Search by mobile number, employee, model..."
+                  placeholder="Search by IMEI, mobile number, model..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                   className="pl-10"
                 />
               </div>
@@ -224,15 +181,25 @@ export function MobileList() {
               <Select
                 options={statusOptions}
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
                 className="w-40"
               />
               <Select
                 options={operatorOptions}
                 value={operatorFilter}
-                onChange={(e) => setOperatorFilter(e.target.value)}
+                onChange={(e) => {
+                  setOperatorFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
                 className="w-40"
               />
+              <Button variant="outline" onClick={handleSearch}>
+                <Search className="h-4 w-4" />
+                Search
+              </Button>
               <Button variant="outline">
                 <Download className="h-4 w-4" />
                 Export
@@ -244,98 +211,107 @@ export function MobileList() {
 
       {/* Table */}
       <Card>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Device</TableHead>
-              <TableHead>Mobile Number</TableHead>
-              <TableHead>Operator / Plan</TableHead>
-              <TableHead>Assigned To</TableHead>
-              <TableHead>Location</TableHead>
-              <TableHead>Monthly Rental</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {paginatedMobiles.map((mobile) => (
-              <TableRow key={mobile.id}>
-                <TableCell>
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-lg bg-green-100 flex items-center justify-center">
-                      {mobile.deviceType === 'Phone' ? (
-                        <Smartphone className="h-5 w-5 text-green-600" />
-                      ) : (
-                        <Phone className="h-5 w-5 text-green-600" />
-                      )}
-                    </div>
-                    <div>
-                      <p className="font-medium text-[#070B47]">
-                        {mobile.manufacturer} {mobile.model}
-                      </p>
-                      <p className="text-xs text-gray-500">{mobile.deviceType}</p>
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  {mobile.mobileNumber ? (
-                    <p className="font-mono">{mobile.mobileNumber}</p>
-                  ) : (
-                    <span className="text-gray-400 italic">No SIM</span>
-                  )}
-                </TableCell>
-                <TableCell>
-                  {mobile.operator ? (
-                    <div>
-                      <Badge variant="outline">{mobile.operator}</Badge>
-                      <p className="text-xs text-gray-500 mt-1">{mobile.planType}</p>
-                    </div>
-                  ) : (
-                    <span className="text-gray-400 italic">-</span>
-                  )}
-                </TableCell>
-                <TableCell>
-                  {mobile.employee || (
-                    <span className="text-gray-400 italic">Unassigned</span>
-                  )}
-                </TableCell>
-                <TableCell>
-                  <p className="text-sm">{mobile.location}</p>
-                  <p className="text-xs text-gray-500">{mobile.company}</p>
-                </TableCell>
-                <TableCell>
-                  {mobile.monthlyRental ? (
-                    <p className="font-medium">{formatCurrency(mobile.monthlyRental)}/mo</p>
-                  ) : (
-                    <span className="text-gray-400">-</span>
-                  )}
-                </TableCell>
-                <TableCell>
-                  <Badge className={statusColors[mobile.status]}>
-                    {mobile.status}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex items-center justify-end gap-1">
-                    <Link href={`/mobile/${mobile.id}`}>
-                      <Button variant="ghost" size="icon">
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                    </Link>
-                    <Link href={`/mobile/${mobile.id}/edit`}>
-                      <Button variant="ghost" size="icon">
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                    </Link>
-                    <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700">
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </TableCell>
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-[#070B47]" />
+          </div>
+        ) : mobiles.length === 0 ? (
+          <div className="text-center py-12">
+            <Smartphone className="h-12 w-12 mx-auto text-gray-300 mb-4" />
+            <p className="text-gray-500">No mobile devices found</p>
+            <Link href="/mobile/new">
+              <Button className="mt-4">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Your First Device
+              </Button>
+            </Link>
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Device</TableHead>
+                <TableHead>IMEI / SIM</TableHead>
+                <TableHead>Mobile Number</TableHead>
+                <TableHead>Operator</TableHead>
+                <TableHead>Assigned To</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Rental</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {mobiles.map((mobile) => (
+                <TableRow key={mobile.id}>
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-lg bg-[#070B47]/10 flex items-center justify-center">
+                        <Smartphone className="h-5 w-5 text-[#070B47]" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-[#070B47]">{mobile.manufacturer} {mobile.model}</p>
+                        <p className="text-xs text-gray-500">{mobile.deviceType || 'Phone'}</p>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <p className="text-sm font-mono">{mobile.imei1 || '-'}</p>
+                    <p className="text-xs text-gray-500 font-mono">{mobile.simNumber || '-'}</p>
+                  </TableCell>
+                  <TableCell>
+                    <p className="font-medium">{mobile.mobileNumber || '-'}</p>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline">
+                      {MOBILE_OPERATORS.find((o) => o.value === mobile.operator)?.label || mobile.operator || '-'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {mobile.employee ? (
+                      <div>
+                        <p className="text-sm">{mobile.employee.firstName} {mobile.employee.lastName}</p>
+                        <p className="text-xs text-gray-500">{mobile.company?.code || '-'}</p>
+                      </div>
+                    ) : (
+                      <span className="text-gray-400 italic">Unassigned</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <Badge className={statusColors[mobile.status] || ''}>
+                      {mobile.status.replace('_', ' ')}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <p className="font-medium">{mobile.monthlyRental ? formatCurrency(mobile.monthlyRental) : '-'}</p>
+                    <p className="text-xs text-gray-500">{mobile.planType || '-'}</p>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <Link href={`/mobile/${mobile.id}`}>
+                        <Button variant="ghost" size="icon">
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </Link>
+                      <Link href={`/mobile/${mobile.id}/edit`}>
+                        <Button variant="ghost" size="icon">
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      </Link>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="text-red-500 hover:text-red-700"
+                        onClick={() => handleDelete(mobile.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
 
         {/* Pagination */}
         {totalPages > 1 && (

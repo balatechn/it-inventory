@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,7 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   Plus,
   Search,
@@ -26,102 +26,25 @@ import {
   Monitor,
   ChevronLeft,
   ChevronRight,
+  Loader2,
 } from 'lucide-react';
 import { statusColors, PRODUCT_TYPES, formatDate, formatCurrency } from '@/lib/utils';
 
-// Mock data
-const mockSystems = [
-  {
-    id: '1',
-    assetTag: 'AST-00001',
-    productType: 'LAPTOP',
-    manufacturer: 'Dell',
-    model: 'Latitude 5520',
-    serialNumber: 'ABC123XYZ',
-    status: 'ACTIVE',
-    currentUser: 'John Smith',
-    location: 'HO – Bangalore',
-    company: 'NCPL',
-    purchaseDate: '2024-01-15',
-    warrantyEndDate: '2027-01-15',
-    purchasePrice: 85000,
-  },
-  {
-    id: '2',
-    assetTag: 'AST-00002',
-    productType: 'DESKTOP',
-    manufacturer: 'HP',
-    model: 'ProDesk 400 G7',
-    serialNumber: 'DEF456UVW',
-    status: 'ACTIVE',
-    currentUser: 'Jane Doe',
-    location: 'Rainland – Bangalore',
-    company: 'RAINLAND',
-    purchaseDate: '2023-06-20',
-    warrantyEndDate: '2026-06-20',
-    purchasePrice: 65000,
-  },
-  {
-    id: '3',
-    assetTag: 'AST-00003',
-    productType: 'LAPTOP',
-    manufacturer: 'Lenovo',
-    model: 'ThinkPad T14',
-    serialNumber: 'GHI789RST',
-    status: 'IN_STOCK',
-    currentUser: null,
-    location: 'HO – Bangalore',
-    company: 'NCPL',
-    purchaseDate: '2024-03-10',
-    warrantyEndDate: '2027-03-10',
-    purchasePrice: 92000,
-  },
-  {
-    id: '4',
-    assetTag: 'AST-00004',
-    productType: 'PRINTER',
-    manufacturer: 'Canon',
-    model: 'imageRUNNER 2625i',
-    serialNumber: 'JKL012OPQ',
-    status: 'ACTIVE',
-    currentUser: 'IT Department',
-    location: 'HO – Bangalore',
-    company: 'NCPL',
-    purchaseDate: '2023-09-05',
-    warrantyEndDate: '2025-09-05',
-    purchasePrice: 125000,
-  },
-  {
-    id: '5',
-    assetTag: 'AST-00005',
-    productType: 'SERVER',
-    manufacturer: 'Dell',
-    model: 'PowerEdge R740',
-    serialNumber: 'MNO345LMN',
-    status: 'ACTIVE',
-    currentUser: 'Server Room',
-    location: 'HO – Bangalore',
-    company: 'NCPL',
-    purchaseDate: '2022-12-01',
-    warrantyEndDate: '2025-12-01',
-    purchasePrice: 450000,
-  },
-  {
-    id: '6',
-    assetTag: 'AST-00006',
-    productType: 'LAPTOP',
-    manufacturer: 'Dell',
-    model: 'Latitude 3520',
-    serialNumber: 'PQR678IJK',
-    status: 'MAINTENANCE',
-    currentUser: 'Alice Johnson',
-    location: 'Rainland – Mangaluru',
-    company: 'RAINLAND',
-    purchaseDate: '2023-04-18',
-    warrantyEndDate: '2026-04-18',
-    purchasePrice: 72000,
-  },
-];
+interface System {
+  id: string;
+  assetTag: string;
+  productType: string;
+  manufacturer?: string;
+  model?: string;
+  serialNumber?: string;
+  status: string;
+  currentUser?: { firstName: string; lastName: string } | null;
+  location?: { name: string } | null;
+  company?: { name: string; code: string } | null;
+  purchaseDate?: string;
+  warrantyEndDate?: string;
+  purchasePrice?: number;
+}
 
 const statusOptions = [
   { value: '', label: 'All Statuses' },
@@ -139,32 +62,62 @@ const productTypeOptions = [
 ];
 
 export function SystemsList() {
+  const [systems, setSystems] = useState<System[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
 
-  // Filter systems
-  const filteredSystems = mockSystems.filter((system) => {
-    const matchesSearch =
-      search === '' ||
-      system.assetTag.toLowerCase().includes(search.toLowerCase()) ||
-      system.manufacturer.toLowerCase().includes(search.toLowerCase()) ||
-      system.model.toLowerCase().includes(search.toLowerCase()) ||
-      system.currentUser?.toLowerCase().includes(search.toLowerCase());
+  useEffect(() => {
+    fetchSystems();
+  }, [currentPage, statusFilter, typeFilter]);
 
-    const matchesStatus = statusFilter === '' || system.status === statusFilter;
-    const matchesType = typeFilter === '' || system.productType === typeFilter;
+  const fetchSystems = async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: '10',
+      });
+      if (statusFilter) params.append('status', statusFilter);
+      if (typeFilter) params.append('productType', typeFilter);
+      if (search) params.append('search', search);
 
-    return matchesSearch && matchesStatus && matchesType;
-  });
+      const response = await fetch(`/api/systems?${params}`);
+      const data = await response.json();
+      
+      if (data.data) {
+        setSystems(data.data);
+        setTotalPages(data.pagination?.totalPages || 1);
+        setTotal(data.pagination?.total || 0);
+      }
+    } catch (error) {
+      console.error('Error fetching systems:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const totalPages = Math.ceil(filteredSystems.length / itemsPerPage);
-  const paginatedSystems = filteredSystems.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  const handleSearch = () => {
+    setCurrentPage(1);
+    fetchSystems();
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this system?')) return;
+    
+    try {
+      const response = await fetch(`/api/systems/${id}`, { method: 'DELETE' });
+      if (response.ok) {
+        fetchSystems();
+      }
+    } catch (error) {
+      console.error('Error deleting system:', error);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -192,9 +145,10 @@ export function SystemsList() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
-                  placeholder="Search by asset tag, manufacturer, model, user..."
+                  placeholder="Search by asset tag, manufacturer, model..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                   className="pl-10"
                 />
               </div>
@@ -203,18 +157,24 @@ export function SystemsList() {
               <Select
                 options={statusOptions}
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
                 className="w-40"
               />
               <Select
                 options={productTypeOptions}
                 value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value)}
+                onChange={(e) => {
+                  setTypeFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
                 className="w-40"
               />
-              <Button variant="outline">
+              <Button variant="outline" onClick={handleSearch}>
                 <Filter className="h-4 w-4" />
-                More Filters
+                Search
               </Button>
               <Button variant="outline">
                 <Download className="h-4 w-4" />
@@ -228,101 +188,111 @@ export function SystemsList() {
       {/* Results Summary */}
       <div className="flex items-center justify-between text-sm text-gray-500">
         <p>
-          Showing {paginatedSystems.length} of {filteredSystems.length} systems
+          {loading ? 'Loading...' : `Showing ${systems.length} of ${total} systems`}
         </p>
-        <div className="flex items-center gap-4">
-          <span className="flex items-center gap-1">
-            <span className="h-2 w-2 rounded-full bg-green-500"></span>
-            Active: {mockSystems.filter((s) => s.status === 'ACTIVE').length}
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="h-2 w-2 rounded-full bg-blue-500"></span>
-            In Stock: {mockSystems.filter((s) => s.status === 'IN_STOCK').length}
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="h-2 w-2 rounded-full bg-amber-500"></span>
-            Maintenance: {mockSystems.filter((s) => s.status === 'MAINTENANCE').length}
-          </span>
-        </div>
       </div>
 
       {/* Table */}
       <Card>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Asset Tag</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Details</TableHead>
-              <TableHead>Assigned To</TableHead>
-              <TableHead>Location</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Warranty</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {paginatedSystems.map((system) => (
-              <TableRow key={system.id}>
-                <TableCell>
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-lg bg-[#070B47]/10 flex items-center justify-center">
-                      <Monitor className="h-5 w-5 text-[#070B47]" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-[#070B47]">{system.assetTag}</p>
-                      <p className="text-xs text-gray-500">{system.serialNumber}</p>
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <Badge variant="outline">{system.productType}</Badge>
-                </TableCell>
-                <TableCell>
-                  <p className="font-medium">{system.manufacturer}</p>
-                  <p className="text-sm text-gray-500">{system.model}</p>
-                </TableCell>
-                <TableCell>
-                  {system.currentUser || (
-                    <span className="text-gray-400 italic">Unassigned</span>
-                  )}
-                </TableCell>
-                <TableCell>
-                  <p className="text-sm">{system.location}</p>
-                  <p className="text-xs text-gray-500">{system.company}</p>
-                </TableCell>
-                <TableCell>
-                  <Badge className={statusColors[system.status]}>
-                    {system.status.replace('_', ' ')}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <p className="text-sm">{formatDate(system.warrantyEndDate)}</p>
-                  <p className="text-xs text-gray-500">
-                    {formatCurrency(system.purchasePrice)}
-                  </p>
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex items-center justify-end gap-1">
-                    <Link href={`/systems/${system.id}`}>
-                      <Button variant="ghost" size="icon">
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                    </Link>
-                    <Link href={`/systems/${system.id}/edit`}>
-                      <Button variant="ghost" size="icon">
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                    </Link>
-                    <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700">
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </TableCell>
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-[#070B47]" />
+          </div>
+        ) : systems.length === 0 ? (
+          <div className="text-center py-12">
+            <Monitor className="h-12 w-12 mx-auto text-gray-300 mb-4" />
+            <p className="text-gray-500">No systems found</p>
+            <Link href="/systems/new">
+              <Button className="mt-4">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Your First System
+              </Button>
+            </Link>
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Asset Tag</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Details</TableHead>
+                <TableHead>Assigned To</TableHead>
+                <TableHead>Location</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Warranty</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {systems.map((system) => (
+                <TableRow key={system.id}>
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-lg bg-[#070B47]/10 flex items-center justify-center">
+                        <Monitor className="h-5 w-5 text-[#070B47]" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-[#070B47]">{system.assetTag}</p>
+                        <p className="text-xs text-gray-500">{system.serialNumber || '-'}</p>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{system.productType}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <p className="font-medium">{system.manufacturer || '-'}</p>
+                    <p className="text-sm text-gray-500">{system.model || '-'}</p>
+                  </TableCell>
+                  <TableCell>
+                    {system.currentUser ? (
+                      `${system.currentUser.firstName} ${system.currentUser.lastName}`
+                    ) : (
+                      <span className="text-gray-400 italic">Unassigned</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <p className="text-sm">{system.location?.name || '-'}</p>
+                    <p className="text-xs text-gray-500">{system.company?.code || '-'}</p>
+                  </TableCell>
+                  <TableCell>
+                    <Badge className={statusColors[system.status] || ''}>
+                      {system.status.replace('_', ' ')}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <p className="text-sm">{system.warrantyEndDate ? formatDate(system.warrantyEndDate) : '-'}</p>
+                    <p className="text-xs text-gray-500">
+                      {system.purchasePrice ? formatCurrency(system.purchasePrice) : '-'}
+                    </p>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <Link href={`/systems/${system.id}`}>
+                        <Button variant="ghost" size="icon">
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </Link>
+                      <Link href={`/systems/${system.id}/edit`}>
+                        <Button variant="ghost" size="icon">
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      </Link>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="text-red-500 hover:text-red-700"
+                        onClick={() => handleDelete(system.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
 
         {/* Pagination */}
         {totalPages > 1 && (
