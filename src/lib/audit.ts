@@ -2,7 +2,7 @@ import { prisma } from './prisma';
 import { Prisma } from '@prisma/client';
 
 export type AuditAction = 'CREATE' | 'UPDATE' | 'DELETE';
-export type EntityType = 'System' | 'Mobile' | 'Software' | 'Request' | 'Employee' | 'Company' | 'Location' | 'Department';
+export type EntityType = 'System' | 'Mobile' | 'Software' | 'Request' | 'Employee' | 'Company' | 'Location' | 'Department' | 'Vendor';
 
 interface AuditLogEntry {
   action: AuditAction;
