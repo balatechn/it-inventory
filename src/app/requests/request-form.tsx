@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, Save, Upload } from 'lucide-react';
 import { requestSchema, type RequestInput } from '@/lib/validations';
-import { COMPANIES, LOCATIONS, REQUEST_TYPES } from '@/lib/utils';
+import { REQUEST_TYPES } from '@/lib/utils';
 
 interface RequestFormProps {
   initialData?: Partial<RequestInput> & { id?: string };
@@ -32,20 +32,52 @@ const employeeTypeOptions = [
   { value: 'EXISTING', label: 'Existing Employee' },
 ];
 
-// Mock data for dropdowns
-const mockDepartments = [
-  { value: 'd1', label: 'IT Department' },
-  { value: 'd2', label: 'Finance' },
-  { value: 'd3', label: 'HR' },
-  { value: 'd4', label: 'Sales' },
-  { value: 'd5', label: 'Operations' },
-  { value: 'd6', label: 'Design' },
-  { value: 'd7', label: 'Marketing' },
-];
+interface LookupData {
+  companies: { id: string; name: string }[];
+  locations: { id: string; name: string }[];
+  employees: { id: string; name: string }[];
+  departments: { id: string; name: string }[];
+}
 
 export function RequestForm({ initialData, isEditing = false }: RequestFormProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [lookupData, setLookupData] = useState<LookupData>({
+    companies: [],
+    locations: [],
+    employees: [],
+    departments: [],
+  });
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch lookup data from API
+  useEffect(() => {
+    async function fetchLookupData() {
+      try {
+        const [companiesRes, locationsRes, employeesRes, departmentsRes] = await Promise.all([
+          fetch('/api/companies'),
+          fetch('/api/locations'),
+          fetch('/api/employees'),
+          fetch('/api/departments'),
+        ]);
+
+        const [companies, locations, employees, departments] = await Promise.all([
+          companiesRes.ok ? companiesRes.json() : [],
+          locationsRes.ok ? locationsRes.json() : [],
+          employeesRes.ok ? employeesRes.json() : [],
+          departmentsRes.ok ? departmentsRes.json() : [],
+        ]);
+
+        setLookupData({ companies, locations, employees, departments });
+      } catch (error) {
+        console.error('Error fetching lookup data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    fetchLookupData();
+  }, []);
 
   const {
     register,
@@ -212,7 +244,7 @@ export function RequestForm({ initialData, isEditing = false }: RequestFormProps
               <Select
                 id="companyId"
                 {...register('companyId')}
-                options={COMPANIES.map((c) => ({ value: c.code, label: c.name }))}
+                options={lookupData.companies.map((c) => ({ value: c.id, label: c.name }))}
                 placeholder="Select company"
               />
               {errors.companyId && (
@@ -225,7 +257,7 @@ export function RequestForm({ initialData, isEditing = false }: RequestFormProps
               <Select
                 id="locationId"
                 {...register('locationId')}
-                options={LOCATIONS.map((l) => ({ value: l.code, label: l.name }))}
+                options={lookupData.locations.map((l) => ({ value: l.id, label: l.name }))}
                 placeholder="Select location"
               />
               {errors.locationId && (
@@ -238,7 +270,7 @@ export function RequestForm({ initialData, isEditing = false }: RequestFormProps
               <Select
                 id="departmentId"
                 {...register('departmentId')}
-                options={mockDepartments}
+                options={lookupData.departments.map((d) => ({ value: d.id, label: d.name }))}
                 placeholder="Select department"
               />
             </div>

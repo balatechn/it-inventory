@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, Save, Upload } from 'lucide-react';
 import { systemSchema, type SystemInput } from '@/lib/validations';
-import { PRODUCT_TYPES, COMPANIES, LOCATIONS } from '@/lib/utils';
+import { PRODUCT_TYPES } from '@/lib/utils';
 
 interface SystemFormProps {
   initialData?: Partial<SystemInput> & { id?: string };
@@ -41,31 +41,56 @@ const osOptions = [
   { value: 'Other', label: 'Other' },
 ];
 
-// Mock data for dropdowns
-const mockEmployees = [
-  { value: 'emp1', label: 'John Smith - NCPL' },
-  { value: 'emp2', label: 'Jane Doe - RAINLAND' },
-  { value: 'emp3', label: 'Alice Johnson - ISKY' },
-];
-
-const mockVendors = [
-  { value: 'v1', label: 'Dell India Pvt Ltd' },
-  { value: 'v2', label: 'HP India Sales Pvt Ltd' },
-  { value: 'v3', label: 'Lenovo India Pvt Ltd' },
-  { value: 'v4', label: 'Canon India Pvt Ltd' },
-];
-
-const mockDepartments = [
-  { value: 'd1', label: 'IT Department' },
-  { value: 'd2', label: 'Finance' },
-  { value: 'd3', label: 'HR' },
-  { value: 'd4', label: 'Sales' },
-  { value: 'd5', label: 'Operations' },
-];
+interface LookupData {
+  companies: { id: string; name: string; code: string }[];
+  locations: { id: string; name: string; code: string }[];
+  employees: { id: string; name: string }[];
+  departments: { id: string; name: string }[];
+  vendors: { id: string; name: string }[];
+}
 
 export function SystemForm({ initialData, isEditing = false }: SystemFormProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [lookupData, setLookupData] = useState<LookupData>({
+    companies: [],
+    locations: [],
+    employees: [],
+    departments: [],
+    vendors: [],
+  });
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch lookup data from API
+  useEffect(() => {
+    async function fetchLookupData() {
+      try {
+        const [companiesRes, locationsRes, employeesRes, departmentsRes, vendorsRes] = await Promise.all([
+          fetch('/api/companies'),
+          fetch('/api/locations'),
+          fetch('/api/employees'),
+          fetch('/api/departments'),
+          fetch('/api/vendors'),
+        ]);
+
+        const [companies, locations, employees, departments, vendors] = await Promise.all([
+          companiesRes.ok ? companiesRes.json() : [],
+          locationsRes.ok ? locationsRes.json() : [],
+          employeesRes.ok ? employeesRes.json() : [],
+          departmentsRes.ok ? departmentsRes.json() : [],
+          vendorsRes.ok ? vendorsRes.json() : [],
+        ]);
+
+        setLookupData({ companies, locations, employees, departments, vendors });
+      } catch (error) {
+        console.error('Error fetching lookup data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    fetchLookupData();
+  }, []);
 
   const {
     register,
@@ -211,7 +236,7 @@ export function SystemForm({ initialData, isEditing = false }: SystemFormProps) 
               <Select
                 id="companyId"
                 {...register('companyId')}
-                options={COMPANIES.map((c) => ({ value: c.code, label: c.name }))}
+                options={lookupData.companies.map((c) => ({ value: c.id, label: c.name }))}
                 placeholder="Select company"
               />
               {errors.companyId && (
@@ -224,7 +249,7 @@ export function SystemForm({ initialData, isEditing = false }: SystemFormProps) 
               <Select
                 id="locationId"
                 {...register('locationId')}
-                options={LOCATIONS.map((l) => ({ value: l.code, label: l.name }))}
+                options={lookupData.locations.map((l) => ({ value: l.id, label: l.name }))}
                 placeholder="Select location"
               />
               {errors.locationId && (
@@ -237,7 +262,7 @@ export function SystemForm({ initialData, isEditing = false }: SystemFormProps) 
               <Select
                 id="departmentId"
                 {...register('departmentId')}
-                options={mockDepartments}
+                options={lookupData.departments.map((d) => ({ value: d.id, label: d.name }))}
                 placeholder="Select department"
               />
             </div>
@@ -247,7 +272,7 @@ export function SystemForm({ initialData, isEditing = false }: SystemFormProps) 
               <Select
                 id="currentUserId"
                 {...register('currentUserId')}
-                options={[{ value: '', label: 'Unassigned' }, ...mockEmployees]}
+                options={[{ value: '', label: 'Unassigned' }, ...lookupData.employees.map((e) => ({ value: e.id, label: e.name }))]}
               />
             </div>
 
@@ -256,7 +281,7 @@ export function SystemForm({ initialData, isEditing = false }: SystemFormProps) 
               <Select
                 id="previousUserId"
                 {...register('previousUserId')}
-                options={[{ value: '', label: 'None' }, ...mockEmployees]}
+                options={[{ value: '', label: 'None' }, ...lookupData.employees.map((e) => ({ value: e.id, label: e.name }))]}
               />
             </div>
           </CardContent>
@@ -345,7 +370,7 @@ export function SystemForm({ initialData, isEditing = false }: SystemFormProps) 
               <Select
                 id="vendorId"
                 {...register('vendorId')}
-                options={[{ value: '', label: 'Select vendor' }, ...mockVendors]}
+                options={[{ value: '', label: 'Select vendor' }, ...lookupData.vendors.map((v) => ({ value: v.id, label: v.name }))]}
               />
             </div>
 

@@ -3,7 +3,7 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { mobileSchema, type MobileInput } from '@/lib/validations';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,32 +12,16 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
-// Mock data for dropdowns - replace with actual data from API
-const companies = [
-  { id: '1', name: 'ISKY' },
-  { id: '2', name: 'NCPL' },
-  { id: '3', name: 'NIPL' },
-  { id: '4', name: 'NRPL' },
-  { id: '5', name: 'Rainland Auto Corp' },
-];
-
-const locations = [
-  { id: '1', name: 'Ludhiana HQ', companyId: '1' },
-  { id: '2', name: 'Delhi Office', companyId: '1' },
-  { id: '3', name: 'Mumbai Office', companyId: '2' },
-  { id: '4', name: 'Bangalore Office', companyId: '3' },
-];
-
-const employees = [
-  { id: '1', name: 'John Doe', email: 'john@isky.com' },
-  { id: '2', name: 'Jane Smith', email: 'jane@ncpl.com' },
-  { id: '3', name: 'Bob Johnson', email: 'bob@nipl.com' },
-];
-
 const operators = ['Airtel', 'Jio', 'Vodafone Idea', 'BSNL', 'MTNL'];
 const planTypes = ['PREPAID', 'POSTPAID', 'DATA_ONLY', 'VOICE_ONLY'];
 const deviceTypes = ['SMARTPHONE', 'FEATURE_PHONE', 'DATA_CARD', 'SIM_ONLY'];
 const statuses = ['ACTIVE', 'INACTIVE', 'SUSPENDED', 'RETURNED', 'LOST'];
+
+interface LookupData {
+  companies: { id: string; name: string }[];
+  locations: { id: string; name: string }[];
+  employees: { id: string; name: string }[];
+}
 
 interface MobileFormProps {
   initialData?: MobileInput & { id: string };
@@ -47,6 +31,39 @@ export function MobileForm({ initialData }: MobileFormProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedCompany, setSelectedCompany] = useState(initialData?.companyId || '');
+  const [lookupData, setLookupData] = useState<LookupData>({
+    companies: [],
+    locations: [],
+    employees: [],
+  });
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch lookup data from API
+  useEffect(() => {
+    async function fetchLookupData() {
+      try {
+        const [companiesRes, locationsRes, employeesRes] = await Promise.all([
+          fetch('/api/companies'),
+          fetch('/api/locations'),
+          fetch('/api/employees'),
+        ]);
+
+        const [companies, locations, employees] = await Promise.all([
+          companiesRes.ok ? companiesRes.json() : [],
+          locationsRes.ok ? locationsRes.json() : [],
+          employeesRes.ok ? employeesRes.json() : [],
+        ]);
+
+        setLookupData({ companies, locations, employees });
+      } catch (error) {
+        console.error('Error fetching lookup data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    fetchLookupData();
+  }, []);
 
   const {
     register,
@@ -66,10 +83,6 @@ export function MobileForm({ initialData }: MobileFormProps) {
   });
 
   const deviceType = watch('deviceType');
-
-  const filteredLocations = locations.filter(
-    (loc) => !selectedCompany || loc.companyId === selectedCompany
-  );
 
   const handleCompanyChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedCompany(e.target.value);
@@ -309,7 +322,7 @@ export function MobileForm({ initialData }: MobileFormProps) {
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="companyId">Company *</Label>
+            <Label htmlFor="companyId">Company</Label>
             <Select
               id="companyId"
               {...register('companyId', {
@@ -318,7 +331,7 @@ export function MobileForm({ initialData }: MobileFormProps) {
               error={errors.companyId?.message}
             >
               <option value="">Select company</option>
-              {companies.map((company) => (
+              {lookupData.companies.map((company) => (
                 <option key={company.id} value={company.id}>
                   {company.name}
                 </option>
@@ -330,7 +343,7 @@ export function MobileForm({ initialData }: MobileFormProps) {
             <Label htmlFor="locationId">Location</Label>
             <Select id="locationId" {...register('locationId')} error={errors.locationId?.message}>
               <option value="">Select location</option>
-              {filteredLocations.map((location) => (
+              {lookupData.locations.map((location) => (
                 <option key={location.id} value={location.id}>
                   {location.name}
                 </option>
@@ -342,9 +355,9 @@ export function MobileForm({ initialData }: MobileFormProps) {
             <Label htmlFor="employeeId">Assigned Employee</Label>
             <Select id="employeeId" {...register('employeeId')} error={errors.employeeId?.message}>
               <option value="">Select employee (optional)</option>
-              {employees.map((employee) => (
+              {lookupData.employees.map((employee) => (
                 <option key={employee.id} value={employee.id}>
-                  {employee.name} ({employee.email})
+                  {employee.name}
                 </option>
               ))}
             </Select>
