@@ -16,6 +16,7 @@ import {
   Truck,
   ChevronDown,
   ChevronRight,
+  History,
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -73,6 +74,11 @@ const navigation: NavItem[] = [
       { title: 'Employees', href: '/masters/employees' },
       { title: 'Vendors', href: '/masters/vendors' },
     ],
+  },
+  {
+    title: 'Audit Logs',
+    href: '/audit-logs',
+    icon: History,
   },
 ];
 

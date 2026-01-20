@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { mobileSchema } from '@/lib/validations';
+import { createAuditLog } from '@/lib/audit';
 
 export async function GET(request: NextRequest) {
   try {
@@ -71,6 +72,17 @@ export async function POST(request: NextRequest) {
       const mobile = await prisma.mobile.create({
         data: validated as any,
       });
+
+      // Create audit log
+      await createAuditLog({
+        action: 'CREATE',
+        entityType: 'Mobile',
+        entityId: mobile.id,
+        newValues: mobile as unknown as Record<string, unknown>,
+        companyId: mobile.companyId,
+        performedBy: 'Admin',
+      });
+
       return NextResponse.json(mobile, { status: 201 });
     } catch (dbError) {
       // Database not connected - return mock success for demo purposes

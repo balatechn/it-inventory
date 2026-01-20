@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { softwareSchema } from '@/lib/validations';
+import { createAuditLog, getChangedFields } from '@/lib/audit';
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -55,9 +56,27 @@ export async function PUT(
     const body = await request.json();
     const validated = softwareSchema.partial().parse(body);
 
+    // Get old values for audit log
+    const oldSoftware = await prisma.software.findUnique({ where: { id } });
+
     const software = await prisma.software.update({
       where: { id },
       data: validated as any,
+    });
+
+    // Create audit log
+    const { oldValues, newValues } = getChangedFields(
+      oldSoftware as Record<string, unknown>,
+      software as unknown as Record<string, unknown>
+    );
+    await createAuditLog({
+      action: 'UPDATE',
+      entityType: 'Software',
+      entityId: id,
+      oldValues,
+      newValues,
+      companyId: software.companyId,
+      performedBy: 'Admin',
     });
 
     return NextResponse.json(software);
@@ -91,9 +110,25 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
+    
+    // Get software data for audit log before deleting
+    const software = await prisma.software.findUnique({ where: { id } });
+    
     await prisma.software.delete({
       where: { id },
     });
+
+    // Create audit log
+    if (software) {
+      await createAuditLog({
+        action: 'DELETE',
+        entityType: 'Software',
+        entityId: id,
+        oldValues: software as unknown as Record<string, unknown>,
+        companyId: software.companyId,
+        performedBy: 'Admin',
+      });
+    }
 
     return NextResponse.json({ message: 'Software deleted successfully' });
   } catch (error: any) {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requestSchema } from '@/lib/validations';
+import { createAuditLog, getChangedFields } from '@/lib/audit';
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -47,9 +48,27 @@ export async function PUT(
     const body = await request.json();
     const validated = requestSchema.partial().parse(body);
 
+    // Get old values for audit log
+    const oldRequest = await prisma.request.findUnique({ where: { id } });
+
     const updatedRequest = await prisma.request.update({
       where: { id },
       data: validated as any,
+    });
+
+    // Create audit log
+    const { oldValues, newValues } = getChangedFields(
+      oldRequest as Record<string, unknown>,
+      updatedRequest as unknown as Record<string, unknown>
+    );
+    await createAuditLog({
+      action: 'UPDATE',
+      entityType: 'Request',
+      entityId: id,
+      oldValues,
+      newValues,
+      companyId: updatedRequest.companyId,
+      performedBy: 'Admin',
     });
 
     // TODO: Send status update notification
@@ -88,9 +107,25 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
+    
+    // Get request data for audit log before deleting
+    const requestData = await prisma.request.findUnique({ where: { id } });
+    
     await prisma.request.delete({
       where: { id },
     });
+
+    // Create audit log
+    if (requestData) {
+      await createAuditLog({
+        action: 'DELETE',
+        entityType: 'Request',
+        entityId: id,
+        oldValues: requestData as unknown as Record<string, unknown>,
+        companyId: requestData.companyId,
+        performedBy: 'Admin',
+      });
+    }
 
     return NextResponse.json({ message: 'Request deleted successfully' });
   } catch (error: any) {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requestSchema } from '@/lib/validations';
+import { createAuditLog } from '@/lib/audit';
 
 export async function GET(request: NextRequest) {
   try {
@@ -81,6 +82,16 @@ export async function POST(request: NextRequest) {
           ...validated,
           requestNumber: dbRequestNumber,
         } as any,
+      });
+
+      // Create audit log
+      await createAuditLog({
+        action: 'CREATE',
+        entityType: 'Request',
+        entityId: newRequest.id,
+        newValues: newRequest as unknown as Record<string, unknown>,
+        companyId: newRequest.companyId,
+        performedBy: 'Admin',
       });
 
       return NextResponse.json(newRequest, { status: 201 });

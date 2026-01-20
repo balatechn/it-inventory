@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { softwareSchema } from '@/lib/validations';
+import { createAuditLog } from '@/lib/audit';
 
 export async function GET(request: NextRequest) {
   try {
@@ -73,6 +74,17 @@ export async function POST(request: NextRequest) {
       const software = await prisma.software.create({
         data: validated as any,
       });
+
+      // Create audit log
+      await createAuditLog({
+        action: 'CREATE',
+        entityType: 'Software',
+        entityId: software.id,
+        newValues: software as unknown as Record<string, unknown>,
+        companyId: software.companyId,
+        performedBy: 'Admin',
+      });
+
       return NextResponse.json(software, { status: 201 });
     } catch (dbError) {
       // Database not connected - return mock success for demo purposes

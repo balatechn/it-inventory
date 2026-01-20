@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { systemSchema } from '@/lib/validations';
+import { createAuditLog } from '@/lib/audit';
 
 export async function GET(request: NextRequest) {
   try {
@@ -72,6 +73,17 @@ export async function POST(request: NextRequest) {
       const system = await prisma.system.create({
         data: validated as any,
       });
+
+      // Create audit log
+      await createAuditLog({
+        action: 'CREATE',
+        entityType: 'System',
+        entityId: system.id,
+        newValues: system as unknown as Record<string, unknown>,
+        companyId: system.companyId,
+        performedBy: 'Admin',
+      });
+
       return NextResponse.json(system, { status: 201 });
     } catch (dbError) {
       // Database not connected - return mock success for demo purposes

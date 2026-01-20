@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { mobileSchema } from '@/lib/validations';
+import { createAuditLog, getChangedFields } from '@/lib/audit';
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -45,9 +46,27 @@ export async function PUT(
     const body = await request.json();
     const validated = mobileSchema.partial().parse(body);
 
+    // Get old values for audit log
+    const oldMobile = await prisma.mobile.findUnique({ where: { id } });
+
     const mobile = await prisma.mobile.update({
       where: { id },
       data: validated as any,
+    });
+
+    // Create audit log
+    const { oldValues, newValues } = getChangedFields(
+      oldMobile as Record<string, unknown>,
+      mobile as unknown as Record<string, unknown>
+    );
+    await createAuditLog({
+      action: 'UPDATE',
+      entityType: 'Mobile',
+      entityId: id,
+      oldValues,
+      newValues,
+      companyId: mobile.companyId,
+      performedBy: 'Admin',
     });
 
     return NextResponse.json(mobile);
@@ -81,9 +100,25 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
+    
+    // Get mobile data for audit log before deleting
+    const mobile = await prisma.mobile.findUnique({ where: { id } });
+    
     await prisma.mobile.delete({
       where: { id },
     });
+
+    // Create audit log
+    if (mobile) {
+      await createAuditLog({
+        action: 'DELETE',
+        entityType: 'Mobile',
+        entityId: id,
+        oldValues: mobile as unknown as Record<string, unknown>,
+        companyId: mobile.companyId,
+        performedBy: 'Admin',
+      });
+    }
 
     return NextResponse.json({ message: 'Mobile deleted successfully' });
   } catch (error: any) {
