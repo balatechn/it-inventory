@@ -3,7 +3,7 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { softwareSchema, type SoftwareInput } from '@/lib/validations';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,14 +12,23 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
-// Mock data for dropdowns - replace with actual data from API
-const companies = [
-  { id: 'clxxxx1', name: 'ISKY' },
-  { id: 'clxxxx2', name: 'NCPL' },
-  { id: 'clxxxx3', name: 'NIPL' },
-  { id: 'clxxxx4', name: 'NRPL' },
-  { id: 'clxxxx5', name: 'Rainland Auto Corp' },
-];
+interface Company {
+  id: string;
+  name: string;
+  code?: string;
+}
+
+interface Location {
+  id: string;
+  name: string;
+  code?: string;
+}
+
+interface Vendor {
+  id: string;
+  name: string;
+  code?: string;
+}
 
 const softwareCategories = [
   { value: 'OPERATING_SYSTEM', label: 'Operating System' },
@@ -52,6 +61,39 @@ interface SoftwareFormProps {
 export function SoftwareForm({ initialData }: SoftwareFormProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+
+  // Fetch lookup data on mount
+  useEffect(() => {
+    const fetchLookupData = async () => {
+      try {
+        const [companiesRes, locationsRes, vendorsRes] = await Promise.all([
+          fetch('/api/companies'),
+          fetch('/api/locations'),
+          fetch('/api/vendors'),
+        ]);
+
+        if (companiesRes.ok) {
+          const data = await companiesRes.json();
+          setCompanies(data);
+        }
+        if (locationsRes.ok) {
+          const data = await locationsRes.json();
+          setLocations(data);
+        }
+        if (vendorsRes.ok) {
+          const data = await vendorsRes.json();
+          setVendors(data);
+        }
+      } catch (error) {
+        console.error('Error fetching lookup data:', error);
+      }
+    };
+
+    fetchLookupData();
+  }, []);
 
   const {
     register,
