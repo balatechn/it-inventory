@@ -16,7 +16,7 @@ import { systemSchema, type SystemInput } from '@/lib/validations';
 import { PRODUCT_TYPES, COMPANIES, LOCATIONS } from '@/lib/utils';
 
 interface SystemFormProps {
-  initialData?: Partial<SystemInput>;
+  initialData?: Partial<SystemInput> & { id?: string };
   isEditing?: boolean;
 }
 
@@ -83,12 +83,28 @@ export function SystemForm({ initialData, isEditing = false }: SystemFormProps) 
   const onSubmit = async (data: SystemInput) => {
     setIsSubmitting(true);
     try {
-      // In production, this would be an API call
-      console.log('Form data:', data);
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      router.push('/systems');
+      const endpoint = isEditing && initialData?.id
+        ? `/api/systems/${initialData.id}`
+        : '/api/systems';
+      const method = isEditing ? 'PUT' : 'POST';
+
+      const response = await fetch(endpoint, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+
+      if (response.ok) {
+        router.push('/systems');
+        router.refresh();
+      } else {
+        const error = await response.json();
+        console.error('Failed to save system:', error);
+        alert('Failed to save system. Please try again.');
+      }
     } catch (error) {
       console.error('Error saving system:', error);
+      alert('An error occurred. Please try again.');
     } finally {
       setIsSubmitting(false);
     }

@@ -16,7 +16,7 @@ import { requestSchema, type RequestInput } from '@/lib/validations';
 import { COMPANIES, LOCATIONS, REQUEST_TYPES } from '@/lib/utils';
 
 interface RequestFormProps {
-  initialData?: Partial<RequestInput>;
+  initialData?: Partial<RequestInput> & { id?: string };
   isEditing?: boolean;
 }
 
@@ -68,12 +68,28 @@ export function RequestForm({ initialData, isEditing = false }: RequestFormProps
   const onSubmit = async (data: RequestInput) => {
     setIsSubmitting(true);
     try {
-      // In production, this would be an API call
-      console.log('Form data:', data);
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      router.push('/requests');
+      const endpoint = isEditing && initialData?.id
+        ? `/api/requests/${initialData.id}`
+        : '/api/requests';
+      const method = isEditing ? 'PUT' : 'POST';
+
+      const response = await fetch(endpoint, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+
+      if (response.ok) {
+        router.push('/requests');
+        router.refresh();
+      } else {
+        const error = await response.json();
+        console.error('Failed to save request:', error);
+        alert('Failed to save request. Please try again.');
+      }
     } catch (error) {
       console.error('Error saving request:', error);
+      alert('An error occurred. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
